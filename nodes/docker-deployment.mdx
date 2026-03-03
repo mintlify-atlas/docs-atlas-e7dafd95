@@ -78,6 +78,14 @@ The Docker container is configured using environment variables. Here's the compl
   ```
 </ResponseField>
 
+<ResponseField name="GENESIS_PATH" type="string">
+  Path to a custom genesis JSON file. If not set, uses the default genesis for the network ID.
+
+  ```bash
+  -e GENESIS_PATH="/tomochain/custom-genesis.json"
+  ```
+</ResponseField>
+
 <ResponseField name="BOOTNODES" type="string">
   Comma-separated list of enode URLs for bootstrap. Uses default bootnodes if not set.
 
