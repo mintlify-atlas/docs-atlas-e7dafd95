@@ -1,0 +1,121 @@
+{
+  "projectType": "infrastructure",
+  "projectName": "Viction",
+  "projectDescription": "An efficient blockchain powered by Proof of Stake Voting consensus with 150 masternodes supporting near-zero fees and 2-second confirmation times",
+  "theme": "aspen",
+  "primaryColor": "#1E88E5",
+  "lightColor": "#42A5F5",
+  "darkColor": "#1565C0",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "installation"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/architecture",
+              "concepts/posv-consensus",
+              "concepts/masternodes",
+              "concepts/network-information"
+            ]
+          },
+          {
+            "group": "Node Operations",
+            "pages": [
+              "nodes/running-fullnode",
+              "nodes/running-masternode",
+              "nodes/configuration",
+              "nodes/docker-deployment"
+            ]
+          },
+          {
+            "group": "Features",
+            "pages": [
+              "features/tomox-dex",
+              "features/tomox-lending",
+              "features/trc21-tokens",
+              "features/smart-contracts"
+            ]
+          },
+          {
+            "group": "Development",
+            "pages": [
+              "development/building-from-source",
+              "development/rpc-api",
+              "development/web3-integration",
+              "development/testing"
+            ]
+          },
+          {
+            "group": "Operations",
+            "pages": [
+              "operations/accounts",
+              "operations/security",
+              "operations/monitoring",
+              "operations/troubleshooting"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "RPC APIs",
+            "pages": [
+              "api/overview",
+              "api/eth-namespace",
+              "api/net-namespace",
+              "api/web3-namespace",
+              "api/personal-namespace",
+              "api/debug-namespace"
+            ]
+          },
+          {
+            "group": "CLI Reference",
+            "pages": [
+              "cli/tomo-command",
+              "cli/account-commands",
+              "cli/console-commands",
+              "cli/flags-reference"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Proof of Stake Voting (PoSV) consensus with 150 masternodes",
+    "Near-zero transaction fees and 2-second block times",
+    "TomoX decentralized exchange protocol",
+    "TomoX lending and borrowing protocol",
+    "TRC21 token standard for gasless transactions",
+    "Full EVM compatibility for smart contracts",
+    "Double validation and true randomization for security",
+    "Masternode staking via smart contracts"
+  ],
+  "publicApiSurface": [
+    "tomo - Main CLI entry point",
+    "tomo account new - Create new account",
+    "tomo account import - Import existing account",
+    "tomo init - Initialize node with genesis",
+    "tomo console - Interactive JavaScript console",
+    "tomo attach - Attach to running node",
+    "eth_* - Standard Ethereum JSON-RPC methods",
+    "net_* - Network status RPC methods",
+    "personal_* - Account management RPC methods",
+    "debug_* - Debug and trace RPC methods",
+    "HTTP RPC - JSON-RPC over HTTP",
+    "WebSocket RPC - JSON-RPC over WebSocket",
+    "IPC - Inter-process communication"
+  ]
+}
