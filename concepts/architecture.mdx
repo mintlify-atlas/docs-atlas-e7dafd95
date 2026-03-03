@@ -1,0 +1,174 @@
+---
+title: System Architecture
+description: Overview of Viction's blockchain architecture and core components
+---
+
+Viction is a high-performance blockchain designed to address Ethereum's scalability challenges while maintaining full EVM compatibility. The architecture is built around a robust masternode system and an innovative consensus mechanism.
+
+## Core Components
+
+### Blockchain Layer
+
+Viction's blockchain layer is based on a modified Ethereum architecture that includes:
+
+- **EVM-Compatible Execution Environment**: Full support for Ethereum smart contracts, protocols, and tools
+- **State Management**: Enhanced state database with optimized storage for trading and lending states
+- **Transaction Processing**: High-throughput transaction execution with 2-second block times
+- **P2P Network**: Robust peer-to-peer networking layer for node communication
+
+### Masternode Network
+
+The masternode network forms the backbone of Viction's infrastructure:
+
+- **150 Masternodes**: Fixed set of validator nodes that secure the network
+- **Staking Mechanism**: Masternodes stake VIC tokens via smart contracts
+- **Randomization Process**: True randomization for masternode selection
+- **Double Validation**: Paired validation system (M1-M2) for enhanced security
+
+<Info>
+Masternodes are selected through a decentralized voting process where VIC token holders can vote for their preferred validators.
+</Info>
+
+### Consensus Engine
+
+Viction uses Proof of Stake Voting (PoSV) consensus, which combines:
+
+- **Block Production**: Masternodes take turns producing blocks in a deterministic order
+- **Validation**: Each block is validated by an assigned validator masternode
+- **Finality**: Fast finality through double validation and checkpoint blocks
+- **Penalties**: Automated penalty system for misbehaving masternodes
+
+## Network Topology
+
+```
+┌─────────────────────────────────────────────────┐
+│              Application Layer                  │
+│  (dApps, Wallets, Smart Contracts)             │
+└────────────────┬────────────────────────────────┘
+                 │
+┌────────────────┴────────────────────────────────┐
+│              RPC/API Layer                      │
+│  (JSON-RPC, WebSocket, GraphQL)                │
+└────────────────┬────────────────────────────────┘
+                 │
+┌────────────────┴────────────────────────────────┐
+│           Viction Node Layer                    │
+│  • Transaction Pool                             │
+│  • Block Builder                                │
+│  • State Management                             │
+└────────────────┬────────────────────────────────┘
+                 │
+┌────────────────┴────────────────────────────────┐
+│           Consensus Layer (PoSV)                │
+│  • Masternode Selection                         │
+│  • Block Validation                             │
+│  • Double Validation                            │
+└────────────────┬────────────────────────────────┘
+                 │
+┌────────────────┴────────────────────────────────┐
+│              P2P Network Layer                  │
+│  • Node Discovery                               │
+│  • Block Propagation                            │
+│  • Transaction Broadcasting                     │
+└─────────────────────────────────────────────────┘
+```
+
+## Key Features
+
+### High Performance
+
+- **2-Second Block Time**: Configured via `Period` parameter (2 seconds between blocks)
+- **Near-Zero Fees**: Optimized gas pricing for minimal transaction costs
+- **High Throughput**: Capable of processing thousands of transactions per second
+
+### Security Mechanisms
+
+#### Double Validation
+
+Every block requires validation from two masternodes:
+
+1. **Creator (M1)**: Proposes and signs the block
+2. **Validator (M2)**: Validates and co-signs the block
+
+This mechanism prevents single-point-of-failure and ensures block integrity.
+
+<Warning>
+Blocks without proper validator signatures (after epoch 2) are rejected by the network.
+</Warning>
+
+#### Penalty System
+
+Masternodes that fail to perform their duties are automatically penalized:
+
+- **Penalty Epochs**: Penalized masternodes are excluded for up to 4 epochs
+- **Automatic Detection**: The system tracks block signing performance
+- **Checkpoint Recording**: Penalties are recorded in checkpoint block headers
+
+### Checkpoint Blocks
+
+Every 900 blocks (one epoch), a special checkpoint block is created:
+
+- **Masternode List**: Contains the current set of authorized masternodes
+- **Validator Mapping**: Stores M1-M2 validator pairs
+- **Penalty Information**: Records penalized masternodes
+- **Reward Distribution**: Triggers reward calculation and distribution
+
+## Storage Architecture
+
+### State Databases
+
+Viction maintains multiple state databases:
+
+- **Main State**: Standard Ethereum state trie for accounts and contracts
+- **Trading State**: Specialized state for TomoX DEX operations
+- **Lending State**: Dedicated state for TomoXLending protocol
+
+### Data Management
+
+- **LRU Caches**: In-memory caches for recent blocks, signatures, and snapshots
+- **Database Backend**: LevelDB for persistent storage
+- **Snapshot System**: Periodic snapshots at checkpoint blocks for fast sync
+
+<Info>
+Archive nodes with `--gcmode archive` retain full historical state data for complete blockchain history.
+</Info>
+
+## Scalability Solutions
+
+### Current Optimizations
+
+- **Gas Limit**: 84,000,000 gas per block (defined in `TomoGenesisGasLimit`)
+- **Efficient State Management**: Optimized state database with caching
+- **Fast Sync**: Snapshot-based synchronization
+
+### Future Enhancements
+
+The Viction architecture is designed to support:
+
+- **Sharding**: Horizontal scaling through shard chains
+- **Private Chains**: Application-specific sidechains
+- **Hardware Integration**: Optimized execution on specialized hardware
+
+## Network Participation
+
+### Node Types
+
+1. **Masternode**: Full validator node participating in consensus
+2. **Full Node**: Maintains complete blockchain state and validates transactions
+3. **Light Node**: Syncs block headers only for lightweight verification
+4. **Archive Node**: Stores complete historical state for all blocks
+
+### Hardware Requirements
+
+For optimal performance, nodes should meet:
+
+- **CPU**: 4+ cores
+- **RAM**: 16GB+ for full nodes, 64GB+ for masternodes
+- **Storage**: 500GB+ SSD (archive nodes require 1TB+)
+- **Network**: 100Mbps+ connection with low latency
+
+## Related Resources
+
+- [PoSV Consensus](/concepts/posv-consensus)
+- [Masternode System](/concepts/masternodes)
+- [Network Information](/concepts/network-information)

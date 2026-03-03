@@ -1,0 +1,628 @@
+---
+title: "Smart Contracts"
+description: "EVM-compatible smart contracts with enhanced features on Viction"
+---
+
+## Overview
+
+Viction provides full Ethereum Virtual Machine (EVM) compatibility, allowing developers to deploy and run smart contracts written in Solidity and other EVM languages. All existing Ethereum tools, libraries, and contracts work seamlessly on Viction.
+
+## EVM Compatibility
+
+Viction maintains compatibility with Ethereum's execution environment:
+
+- **Solidity Support**: All Solidity versions supported by Ethereum
+- **Vyper Support**: Alternative smart contract language
+- **Bytecode Compatible**: Deploy existing Ethereum contract bytecode
+- **Standard Opcodes**: Full EVM instruction set
+- **Precompiled Contracts**: Standard cryptographic operations
+
+### EVM Context
+
+```go
+type Context struct {
+    CanTransfer CanTransferFunc
+    Transfer TransferFunc
+    GetHash GetHashFunc
+    
+    // Message information
+    Origin      common.Address
+    GasPrice    *big.Int
+    // ... additional context
+}
+```
+
+Source: `core/vm/evm.go:91`
+
+## Enhanced Features
+
+Viction extends standard EVM functionality:
+
+### 1. TomoX Integration
+
+Smart contracts can interact with the TomoX protocol:
+
+```go
+if evm.ChainConfig().IsTomoXEnabled(evm.BlockNumber) {
+    switch p.(type) {
+    case *tomoxEpochPrice:
+        p.(*tomoxEpochPrice).SetTradingState(evm.tradingStateDB)
+    case *tomoxLastPrice:
+        p.(*tomoxLastPrice).SetTradingState(evm.tradingStateDB)
+    }
+}
+```
+
+Source: `core/vm/evm.go:57`
+
+### 2. TRC21 Token Support
+
+Native protocol support for gasless token transactions:
+
+- Zero-gas transactions for TRC21 tokens
+- Fee abstraction at protocol level
+- Issuer capacity management
+
+### 3. Extended Precompiles
+
+Additional precompiled contracts:
+
+- **TomoX Price Oracles**: Access on-chain price data
+- **Randomization**: Verifiable random numbers
+- **Block Signer**: Consensus participant info
+
+## Solidity Versions
+
+Viction supports all Solidity versions:
+
+### Solidity 0.4.x
+
+```solidity
+pragma solidity ^0.4.24;
+
+contract TRC21 is ITRC21 {
+    using SafeMath for uint256;
+    
+    mapping (address => uint256) private _balances;
+    uint256 private _minFee;
+    address private _issuer;
+    // ...
+}
+```
+
+Source: `contracts/tomox/contract/TRC21.sol:38`
+
+### Solidity 0.5.x and 0.6.x
+
+```solidity
+pragma solidity >=0.5.0 <0.7.0;
+
+contract Inherited is Base1, Base2 {
+    function foo() public override(Base1, Base2) {}
+}
+```
+
+Source: `contracts/tests/contract/Inherited.sol:13`
+
+### Solidity 0.8.x
+
+Full support for latest features:
+- Built-in overflow checking
+- Custom errors
+- Enhanced type safety
+
+## Gas Mechanics
+
+### Gas Price
+
+Viction uses a minimum gas price:
+
+```text
+Minimum Gas Price: 250,000,000 wei (0.25 Gwei)
+```
+
+Transactions with lower gas prices are rejected.
+
+### Gas Costs
+
+Standard EVM gas costs apply:
+
+- **SSTORE**: 20,000 gas (first write), 5,000 gas (update)
+- **SLOAD**: 200 gas
+- **Transfer**: 21,000 gas
+- **Contract Creation**: 32,000 gas + bytecode cost
+- **CALL**: 700 gas + value transfer
+
+### TRC21 Gas Subsidy
+
+TRC21 tokens enable gasless transactions:
+
+- Users pay 0 gas price
+- Validators pay gas from token issuer's deposit
+- Fee collected in tokens instead of VIC
+
+## Contract Deployment
+
+### Using Remix
+
+1. Write contract in Remix IDE
+2. Compile with desired Solidity version
+3. Connect to Viction network (MetaMask)
+4. Deploy with sufficient VIC for gas
+
+### Using Hardhat
+
+```javascript
+module.exports = {
+  solidity: "0.8.19",
+  networks: {
+    viction: {
+      url: "https://rpc.viction.xyz",
+      accounts: [PRIVATE_KEY],
+      chainId: 88
+    }
+  }
+};
+```
+
+### Using Truffle
+
+```javascript
+module.exports = {
+  networks: {
+    viction: {
+      provider: () => new HDWalletProvider(
+        mnemonic,
+        "https://rpc.viction.xyz"
+      ),
+      network_id: 88,
+      gas: 5000000,
+      gasPrice: 250000000
+    }
+  }
+};
+```
+
+## Contract Examples
+
+### Basic Token (TRC21)
+
+```solidity
+pragma solidity ^0.4.24;
+
+import "./TRC21.sol";
+
+contract MyToken is TRC21 {
+    constructor(
+        string memory name,
+        string memory symbol,
+        uint8 decimals,
+        uint256 cap,
+        uint256 minFee
+    ) TRC21(name, symbol, decimals) public {
+        _mint(msg.sender, cap);
+        _changeIssuer(msg.sender);
+        _changeMinFee(minFee);
+    }
+    
+    function transferOwnership(address newIssuer) public {
+        require(msg.sender == issuer());
+        _changeIssuer(newIssuer);
+    }
+}
+```
+
+### Multisig Wallet
+
+```solidity
+pragma solidity ^0.4.24;
+
+contract MultiSigWallet {
+    mapping (uint => Transaction) public transactions;
+    mapping (uint => mapping (address => bool)) public confirmations;
+    mapping (address => bool) public isOwner;
+    address[] public owners;
+    uint public required;
+    
+    struct Transaction {
+        address destination;
+        uint value;
+        bytes data;
+        bool executed;
+    }
+    
+    function submitTransaction(address destination, uint value, bytes data)
+        public
+        returns (uint transactionId)
+    {
+        transactionId = addTransaction(destination, value, data);
+        confirmTransaction(transactionId);
+    }
+    
+    function confirmTransaction(uint transactionId) public {
+        require(isOwner[msg.sender]);
+        confirmations[transactionId][msg.sender] = true;
+        executeTransaction(transactionId);
+    }
+}
+```
+
+Source: `contracts/multisigwallet/contract/MultiSigWallet.sol`
+
+### TomoX Relayer Registration
+
+```solidity
+pragma solidity ^0.4.24;
+
+contract RelayerRegistration {
+    struct Relayer {
+        uint256 _deposit;
+        uint16 _tradeFee;
+        address[] _fromTokens;
+        address[] _toTokens;
+        uint _index;
+        address _owner;
+    }
+    
+    mapping(address => Relayer) public RELAYER_LIST;
+    
+    function register(
+        address coinbase,
+        uint16 tradeFee,
+        address[] memory fromTokens,
+        address[] memory toTokens
+    ) public payable {
+        require(msg.value >= MinimumDeposit);
+        require(tradeFee >= 0 && tradeFee < 1000);
+        
+        RELAYER_LIST[coinbase] = Relayer({
+            _deposit: msg.value,
+            _tradeFee: tradeFee,
+            _fromTokens: fromTokens,
+            _toTokens: toTokens,
+            _index: RelayerCount,
+            _owner: msg.sender
+        });
+        
+        RelayerCount++;
+    }
+}
+```
+
+Source: `contracts/tomox/contract/Registration.sol:115`
+
+## Contract Verification
+
+### VicScan Verification
+
+Verify contracts on VicScan explorer:
+
+1. Navigate to deployed contract address
+2. Click "Verify & Publish"
+3. Select compiler version and optimization
+4. Paste contract source code
+5. Submit for verification
+
+### Benefits of Verification
+
+- Users can read contract code
+- Direct contract interaction via explorer
+- Increased trust and transparency
+- ABI automatically generated
+
+## Contract Interaction
+
+### Web3.js
+
+```javascript
+const Web3 = require('web3');
+const web3 = new Web3('https://rpc.viction.xyz');
+
+const contract = new web3.eth.Contract(ABI, contractAddress);
+
+// Read function
+const balance = await contract.methods.balanceOf(address).call();
+
+// Write function
+await contract.methods.transfer(recipient, amount).send({
+    from: senderAddress,
+    gas: 100000,
+    gasPrice: '250000000'
+});
+```
+
+### Ethers.js
+
+```javascript
+const { ethers } = require('ethers');
+
+const provider = new ethers.providers.JsonRpcProvider(
+    'https://rpc.viction.xyz'
+);
+const signer = provider.getSigner();
+const contract = new ethers.Contract(contractAddress, ABI, signer);
+
+// Read
+const balance = await contract.balanceOf(address);
+
+// Write
+const tx = await contract.transfer(recipient, amount);
+await tx.wait();
+```
+
+### Smart Contract Calls
+
+Contracts can call other contracts:
+
+```solidity
+interface IERC20 {
+    function transfer(address to, uint256 value) external returns (bool);
+}
+
+contract MyContract {
+    function sendTokens(address token, address to, uint256 amount) public {
+        IERC20(token).transfer(to, amount);
+    }
+}
+```
+
+## Security Considerations
+
+### Reentrancy
+
+Protect against reentrancy attacks:
+
+```solidity
+bool private locked;
+
+modifier noReentrant() {
+    require(!locked, "Reentrant call");
+    locked = true;
+    _;
+    locked = false;
+}
+
+function withdraw() public noReentrant {
+    uint256 amount = balances[msg.sender];
+    balances[msg.sender] = 0;
+    msg.sender.transfer(amount);
+}
+```
+
+### Integer Overflow
+
+Use SafeMath (or Solidity 0.8+):
+
+```solidity
+import "./SafeMath.sol";
+
+contract Safe {
+    using SafeMath for uint256;
+    
+    function add(uint256 a, uint256 b) public pure returns (uint256) {
+        return a.add(b);  // Reverts on overflow
+    }
+}
+```
+
+Source: `contracts/tomox/contract/SafeMath.sol`
+
+### Access Control
+
+Implement proper access restrictions:
+
+```solidity
+address public owner;
+
+modifier onlyOwner() {
+    require(msg.sender == owner, "Owner only");
+    _;
+}
+
+function setOwner(address newOwner) public onlyOwner {
+    owner = newOwner;
+}
+```
+
+## Gas Optimization
+
+### Storage vs Memory
+
+```solidity
+// Expensive: reads from storage
+function expensive() public view returns (uint256) {
+    return _balances[msg.sender];
+}
+
+// Cheaper: uses memory
+function cheap() public view returns (uint256) {
+    uint256 balance = _balances[msg.sender];
+    return balance;
+}
+```
+
+### Packing Variables
+
+```solidity
+// Inefficient: uses 3 storage slots
+uint256 a;
+uint128 b;
+uint128 c;
+
+// Efficient: uses 2 storage slots
+uint256 a;
+uint128 b;
+uint128 c;  // packed with b
+```
+
+### Batch Operations
+
+```solidity
+// Inefficient: multiple transactions
+for (uint i = 0; i < recipients.length; i++) {
+    token.transfer(recipients[i], amounts[i]);
+}
+
+// Efficient: single transaction
+function batchTransfer(
+    address[] recipients,
+    uint256[] amounts
+) public {
+    for (uint i = 0; i < recipients.length; i++) {
+        _transfer(msg.sender, recipients[i], amounts[i]);
+    }
+}
+```
+
+## Debugging
+
+### Events
+
+Use events for debugging:
+
+```solidity
+event Debug(string message, uint256 value);
+
+function debugFunction() public {
+    emit Debug("Starting", block.number);
+    // ... function logic
+    emit Debug("Complete", balance);
+}
+```
+
+### Revert Messages
+
+Provide clear error messages:
+
+```solidity
+require(balance >= amount, "Insufficient balance");
+require(msg.sender == owner, "Only owner can call this");
+```
+
+### Hardhat Console
+
+```solidity
+import "hardhat/console.sol";
+
+contract Debug {
+    function test() public {
+        console.log("Value:", someValue);
+    }
+}
+```
+
+## Testing
+
+### Unit Tests (Hardhat)
+
+```javascript
+const { expect } = require("chai");
+
+describe("MyToken", function() {
+    it("Should transfer tokens", async function() {
+        const [owner, addr1] = await ethers.getSigners();
+        const Token = await ethers.getContractFactory("MyToken");
+        const token = await Token.deploy("Test", "TST", 18, 1000000, 100);
+        
+        await token.transfer(addr1.address, 1000);
+        expect(await token.balanceOf(addr1.address)).to.equal(1000);
+    });
+});
+```
+
+### Integration Tests
+
+Test on Viction testnet before mainnet deployment.
+
+## Contract Upgrades
+
+### Proxy Pattern
+
+```solidity
+contract Proxy {
+    address public implementation;
+    
+    function upgradeTo(address newImplementation) public {
+        require(msg.sender == admin);
+        implementation = newImplementation;
+    }
+    
+    fallback() external payable {
+        address impl = implementation;
+        assembly {
+            calldatacopy(0, 0, calldatasize())
+            let result := delegatecall(gas(), impl, 0, calldatasize(), 0, 0)
+            returndatacopy(0, 0, returndatasize())
+            switch result
+            case 0 { revert(0, returndatasize()) }
+            default { return(0, returndatasize()) }
+        }
+    }
+}
+```
+
+<Accordion title="Can I deploy any Ethereum contract on Viction?">
+Yes, Viction is fully EVM-compatible. Any contract that works on Ethereum will work on Viction without modifications. This includes:
+- Uniswap V2/V3 contracts
+- OpenZeppelin contracts
+- Compound Finance contracts
+- Custom contracts written in Solidity or Vyper
+
+Simply point your deployment tools to Viction's RPC endpoint and deploy as you would on Ethereum.
+</Accordion>
+
+<Accordion title="What are the gas costs compared to Ethereum?">
+Viction has significantly lower gas costs than Ethereum:
+- Faster block times (2 seconds vs 12 seconds)
+- Lower gas prices (0.25 Gwei minimum vs Ethereum's market rate)
+- Same gas per operation, but lower cost per gas
+
+Typical transaction costs:
+- Token transfer: ~$0.01
+- Uniswap swap: ~$0.05
+- NFT mint: ~$0.02
+
+Compare this to Ethereum where similar operations can cost $5-50+ during peak times.
+</Accordion>
+
+<Accordion title="How do I access TomoX prices from my smart contract?">
+Viction provides precompiled contracts for TomoX price data:
+
+```solidity
+interface ITomoXPrice {
+    function getEpochPrice(address base, address quote) 
+        external view returns (uint256);
+    function getLastPrice(address base, address quote) 
+        external view returns (uint256);
+}
+```
+
+Use these addresses:
+- Epoch Price: `0x00000...` (check documentation)
+- Last Price: `0x00000...` (check documentation)
+
+These provide on-chain price feeds for any token pair traded on TomoX.
+</Accordion>
+
+<Accordion title="Should I use Solidity 0.4, 0.5, 0.6, or 0.8?">
+Recommendation depends on your needs:
+
+- **Solidity 0.8.x**: Best for new projects
+  - Built-in overflow protection
+  - Better error handling
+  - Latest features
+  - No SafeMath needed
+
+- **Solidity 0.4.x/0.5.x**: Use for compatibility
+  - Porting existing Ethereum contracts
+  - Integrating with legacy code
+  - Must use SafeMath library
+
+All versions work perfectly on Viction. Choose based on your project requirements.
+</Accordion>
+
+## See Also
+
+- [TRC21 Tokens](/features/trc21-tokens) - Gasless token standard
+- [TomoX DEX](/features/tomox-dex) - Decentralized exchange integration
+- [TomoX Lending](/features/tomox-lending) - Lending protocol contracts

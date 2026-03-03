@@ -1,0 +1,550 @@
+---
+title: Testing and Development
+description: Testing practices and development workflows for Viction blockchain
+---
+
+## Overview
+
+Viction provides comprehensive testing infrastructure to ensure code quality and reliability. The testing framework includes unit tests, integration tests, and development tools.
+
+## Running Tests
+
+### Run All Tests
+
+```bash
+make test
+```
+
+Or using the build script:
+
+```bash
+go run build/ci.go test
+```
+
+### Run Tests with Coverage
+
+```bash
+go run build/ci.go test -coverage
+```
+
+This generates a `coverage.txt` file with detailed coverage information:
+
+```bash
+# View coverage report
+go tool cover -html=coverage.txt
+```
+
+### Run Specific Package Tests
+
+```bash
+# Test a specific package
+go test ./core/...
+
+# Test with verbose output
+go test -v ./rpc/...
+
+# Test with coverage for specific package
+go test -coverprofile=cover.out ./ethclient/...
+go tool cover -html=cover.out
+```
+
+### Run Individual Test
+
+```bash
+# Run specific test function
+go test -run TestSpecificFunction ./package/path
+
+# Run tests matching pattern
+go test -run "TestBlock.*" ./core/...
+```
+
+## Test Configuration
+
+### Test Flags
+
+Viction's test suite supports various flags:
+
+- `-p 1`: Run tests sequentially (used in CI for slow builders)
+- `-covermode=atomic`: Thread-safe coverage mode
+- `-cover`: Enable coverage collection
+- `-coverprofile=file`: Write coverage profile to file
+- `-timeout`: Set test timeout (default varies by test)
+- `-race`: Enable race detector
+- `-short`: Run shorter version of tests
+
+### Example Test Commands
+
+```bash
+# Run with race detector
+go test -race ./...
+
+# Run with timeout
+go test -timeout 30s ./core/...
+
+# Run short tests only
+go test -short ./...
+
+# Parallel execution with 4 workers
+go test -p 4 ./...
+```
+
+## Writing Tests
+
+### Unit Test Example
+
+```go
+package mypackage
+
+import (
+    "testing"
+    "github.com/tomochain/tomochain/common"
+)
+
+func TestAddressValidation(t *testing.T) {
+    tests := []struct {
+        name    string
+        address string
+        valid   bool
+    }{
+        {"valid address", "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0", true},
+        {"invalid address", "0xinvalid", false},
+        {"empty address", "", false},
+    }
+    
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            addr := common.HexToAddress(tt.address)
+            if tt.valid && addr == (common.Address{}) {
+                t.Errorf("Expected valid address, got zero address")
+            }
+        })
+    }
+}
+```
+
+### Benchmark Tests
+
+```go
+func BenchmarkHashingOperation(b *testing.B) {
+    data := []byte("test data")
+    
+    b.ResetTimer()
+    for i := 0; i < b.N; i++ {
+        crypto.Keccak256(data)
+    }
+}
+
+// Run benchmarks
+// go test -bench=. -benchmem ./package/path
+```
+
+### Table-Driven Tests
+
+```go
+func TestTransactionValidation(t *testing.T) {
+    testCases := []struct {
+        name        string
+        tx          *types.Transaction
+        expectError bool
+        errorMsg    string
+    }{
+        {
+            name:        "valid transaction",
+            tx:          createValidTx(),
+            expectError: false,
+        },
+        {
+            name:        "invalid nonce",
+            tx:          createInvalidNonceTx(),
+            expectError: true,
+            errorMsg:    "nonce too low",
+        },
+    }
+    
+    for _, tc := range testCases {
+        t.Run(tc.name, func(t *testing.T) {
+            err := validateTransaction(tc.tx)
+            if tc.expectError {
+                if err == nil {
+                    t.Errorf("Expected error but got nil")
+                }
+            } else {
+                if err != nil {
+                    t.Errorf("Unexpected error: %v", err)
+                }
+            }
+        })
+    }
+}
+```
+
+## Integration Testing
+
+### Testing with Local Node
+
+```go
+import (
+    "context"
+    "testing"
+    
+    "github.com/tomochain/tomochain/ethclient"
+)
+
+func TestIntegrationWithNode(t *testing.T) {
+    if testing.Short() {
+        t.Skip("Skipping integration test in short mode")
+    }
+    
+    client, err := ethclient.Dial("http://localhost:8545")
+    if err != nil {
+        t.Fatalf("Failed to connect to node: %v", err)
+    }
+    
+    blockNumber, err := client.BlockNumber(context.Background())
+    if err != nil {
+        t.Fatalf("Failed to get block number: %v", err)
+    }
+    
+    if blockNumber == 0 {
+        t.Error("Expected non-zero block number")
+    }
+}
+```
+
+### RPC Testing
+
+```go
+import (
+    "github.com/tomochain/tomochain/rpc"
+)
+
+func TestRPCCall(t *testing.T) {
+    client, err := rpc.Dial("http://localhost:8545")
+    if err != nil {
+        t.Fatalf("Failed to connect: %v", err)
+    }
+    defer client.Close()
+    
+    var result string
+    err = client.Call(&result, "web3_clientVersion")
+    if err != nil {
+        t.Fatalf("RPC call failed: %v", err)
+    }
+    
+    if result == "" {
+        t.Error("Expected non-empty client version")
+    }
+}
+```
+
+## Smart Contract Testing
+
+### Using Go Bindings
+
+```go
+import (
+    "math/big"
+    "testing"
+    
+    "github.com/tomochain/tomochain/accounts/abi/bind"
+    "github.com/tomochain/tomochain/accounts/abi/bind/backends"
+    "github.com/tomochain/tomochain/core"
+)
+
+func TestContract(t *testing.T) {
+    // Setup simulated backend
+    key, _ := crypto.GenerateKey()
+    auth := bind.NewKeyedTransactor(key)
+    
+    alloc := make(core.GenesisAlloc)
+    alloc[auth.From] = core.GenesisAccount{Balance: big.NewInt(1e18)}
+    
+    backend := backends.NewSimulatedBackend(alloc, 8000000)
+    
+    // Deploy contract
+    address, tx, contract, err := DeployMyContract(auth, backend)
+    if err != nil {
+        t.Fatalf("Failed to deploy contract: %v", err)
+    }
+    
+    backend.Commit()
+    
+    // Test contract interaction
+    value, err := contract.GetValue(nil)
+    if err != nil {
+        t.Fatalf("Failed to call contract: %v", err)
+    }
+    
+    expected := big.NewInt(0)
+    if value.Cmp(expected) != 0 {
+        t.Errorf("Expected %v, got %v", expected, value)
+    }
+}
+```
+
+### JavaScript Contract Testing (Hardhat)
+
+```javascript
+const { expect } = require('chai');
+const { ethers } = require('hardhat');
+
+describe('MyContract', function () {
+  let contract;
+  let owner;
+  let addr1;
+  
+  beforeEach(async function () {
+    [owner, addr1] = await ethers.getSigners();
+    
+    const MyContract = await ethers.getContractFactory('MyContract');
+    contract = await MyContract.deploy();
+    await contract.deployed();
+  });
+  
+  it('Should set the right owner', async function () {
+    expect(await contract.owner()).to.equal(owner.address);
+  });
+  
+  it('Should update value', async function () {
+    await contract.setValue(42);
+    expect(await contract.getValue()).to.equal(42);
+  });
+  
+  it('Should revert on unauthorized access', async function () {
+    await expect(
+      contract.connect(addr1).setValue(42)
+    ).to.be.revertedWith('Unauthorized');
+  });
+});
+```
+
+### Run Hardhat Tests
+
+```bash
+# Install dependencies
+npm install --save-dev hardhat @nomiclabs/hardhat-ethers ethers chai
+
+# Run tests
+npx hardhat test
+
+# Run with gas reporter
+npx hardhat test --network hardhat
+
+# Run specific test file
+npx hardhat test test/MyContract.test.js
+```
+
+## Code Quality Tools
+
+### Run Linters
+
+```bash
+go run build/ci.go lint
+```
+
+This runs multiple linters:
+- **vet**: Examines Go source code and reports suspicious constructs
+- **gofmt**: Checks code formatting
+- **misspell**: Finds commonly misspelled English words
+- **goconst**: Finds repeated strings that could be constants
+- **unconvert**: Removes unnecessary type conversions
+- **gosimple**: Simplifies code
+
+### Format Code
+
+```bash
+# Format all Go files
+make gofmt
+
+# Or manually
+gofmt -s -w .
+```
+
+### Static Analysis
+
+```bash
+# Run go vet
+go vet ./...
+
+# Run staticcheck
+go install honnef.co/go/tools/cmd/staticcheck@latest
+staticcheck ./...
+```
+
+## Development Workflow
+
+### Local Development Node
+
+```bash
+# Start development node
+tomo --dev \
+  --datadir /tmp/viction-dev \
+  --rpc --rpcaddr 0.0.0.0 --rpcport 8545 \
+  --ws --wsaddr 0.0.0.0 --wsport 8546 \
+  --rpcapi "eth,net,web3,debug,personal" \
+  --wsapi "eth,net,web3" \
+  --verbosity 4
+```
+
+### Testing Against Local Node
+
+```javascript
+// Connect to local node
+const web3 = new Web3('http://localhost:8545');
+
+// Get accounts
+const accounts = await web3.eth.getAccounts();
+console.log('Available accounts:', accounts);
+
+// Deploy contract
+const MyContract = new web3.eth.Contract(abi);
+const contract = await MyContract.deploy({
+  data: bytecode,
+  arguments: []
+}).send({
+  from: accounts[0],
+  gas: 1500000
+});
+
+console.log('Contract deployed at:', contract.options.address);
+```
+
+## Continuous Integration
+
+### GitHub Actions Example
+
+```yaml
+name: Tests
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.18'
+      
+      - name: Run tests
+        run: go run build/ci.go test -coverage
+      
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.txt
+```
+
+## Performance Testing
+
+### Load Testing RPC Endpoints
+
+```bash
+# Install artillery
+npm install -g artillery
+
+# Create load test config (load-test.yml)
+# config:
+#   target: 'http://localhost:8545'
+#   phases:
+#     - duration: 60
+#       arrivalRate: 10
+# scenarios:
+#   - name: "Get block number"
+#     engine: "http"
+#     flow:
+#       - post:
+#           url: "/"
+#           json:
+#             jsonrpc: "2.0"
+#             method: "eth_blockNumber"
+#             params: []
+#             id: 1
+
+# Run load test
+artillery run load-test.yml
+```
+
+### Benchmark Node Performance
+
+```bash
+# Run Go benchmarks
+go test -bench=. -benchmem -cpuprofile=cpu.prof -memprofile=mem.prof ./core/...
+
+# Analyze CPU profile
+go tool pprof cpu.prof
+
+# Analyze memory profile
+go tool pprof mem.prof
+```
+
+## Debugging
+
+### Enable Debug Logging
+
+```bash
+tomo --verbosity 5 --vmodule "rpc=5,eth=4"
+```
+
+### Debug RPC Calls
+
+```javascript
+// Enable debug in Web3.js
+const web3 = new Web3('http://localhost:8545');
+web3.currentProvider.send = new Proxy(web3.currentProvider.send, {
+  apply(target, thisArg, args) {
+    console.log('RPC Request:', JSON.stringify(args[0]));
+    return Reflect.apply(target, thisArg, args).then(result => {
+      console.log('RPC Response:', JSON.stringify(result));
+      return result;
+    });
+  }
+});
+```
+
+### Transaction Tracing
+
+```javascript
+// Trace transaction execution
+const trace = await web3.currentProvider.send({
+  jsonrpc: '2.0',
+  method: 'debug_traceTransaction',
+  params: [txHash, {}],
+  id: 1
+});
+
+console.log('Transaction trace:', trace.result);
+```
+
+## Best Practices
+
+### Test Organization
+
+1. **Unit tests**: Test individual functions and components
+2. **Integration tests**: Test component interactions
+3. **End-to-end tests**: Test complete user workflows
+4. **Benchmark tests**: Measure performance
+
+### Test Coverage Goals
+
+- Aim for >80% code coverage
+- Focus on critical paths
+- Test edge cases and error conditions
+- Test concurrent scenarios
+
+### CI/CD Guidelines
+
+- Run tests on every commit
+- Require passing tests for merges
+- Generate and track coverage reports
+- Run linters and formatters
+- Automate deployment to testnets
+
+## Next Steps
+
+- [Building from Source](/development/building-from-source)
+- [RPC API Reference](/development/rpc-api)
+- [Web3 Integration](/development/web3-integration)

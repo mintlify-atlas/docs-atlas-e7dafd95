@@ -1,0 +1,413 @@
+---
+title: Monitoring and Metrics
+description: Monitor node health and performance metrics
+---
+
+## Overview
+
+Viction provides comprehensive metrics collection for monitoring node health, performance, and resource usage. The metrics system is based on the go-metrics library and can export data to various monitoring systems.
+
+## Enabling Metrics
+
+### Basic Metrics
+
+Enable standard metrics collection:
+
+```bash
+tomo --metrics
+```
+
+This enables basic health and performance metrics with minimal overhead.
+
+### Expensive Metrics
+
+Enable detailed metrics including resource-intensive measurements:
+
+```bash
+tomo --metrics --metrics.expensive
+```
+
+<Warning>
+Expensive metrics can impact node performance. Only enable on nodes with sufficient resources and when detailed monitoring is required.
+</Warning>
+
+### HTTP Metrics Endpoint
+
+Expose metrics via HTTP for scraping by monitoring systems:
+
+```bash
+tomo --metrics --metrics.addr 127.0.0.1 --metrics.port 6060
+```
+
+**Access metrics:**
+```bash
+curl http://127.0.0.1:6060/debug/metrics
+```
+
+**Options:**
+- `--metrics.addr`: HTTP server listening interface (default: `127.0.0.1`)
+- `--metrics.port`: HTTP server listening port (default: `6060`)
+
+<Warning>
+Never expose the metrics endpoint to the public internet. Always bind to localhost or use firewall rules to restrict access to trusted monitoring systems.
+</Warning>
+
+## System Metrics
+
+Viction automatically collects system-level metrics every 3 seconds:
+
+### CPU Metrics
+
+| Metric | Description |
+|--------|-------------|
+| `system/cpu/sysload` | System-wide CPU load |
+| `system/cpu/syswait` | System-wide CPU wait time |
+| `system/cpu/procload` | Process CPU load |
+| `system/cpu/threads` | Number of OS threads |
+| `system/cpu/goroutines` | Number of Go goroutines |
+
+### Memory Metrics
+
+| Metric | Description |
+|--------|-------------|
+| `system/memory/pauses` | GC pause time |
+| `system/memory/allocs` | Memory allocations |
+| `system/memory/frees` | Memory deallocations |
+| `system/memory/held` | Memory held by heap |
+| `system/memory/used` | Memory currently in use |
+
+### Disk Metrics
+
+| Metric | Description |
+|--------|-------------|
+| `system/disk/readcount` | Number of disk reads |
+| `system/disk/readdata` | Bytes read from disk |
+| `system/disk/readbytes` | Total bytes read (counter) |
+| `system/disk/writecount` | Number of disk writes |
+| `system/disk/writedata` | Bytes written to disk |
+| `system/disk/writebytes` | Total bytes written (counter) |
+
+## Runtime Metrics
+
+Go runtime metrics provide insight into application performance:
+
+### Memory Statistics
+
+| Metric | Description |
+|--------|-------------|
+| `runtime.MemStats.Alloc` | Bytes of allocated heap objects |
+| `runtime.MemStats.TotalAlloc` | Cumulative bytes allocated |
+| `runtime.MemStats.Sys` | Total bytes from OS |
+| `runtime.MemStats.Mallocs` | Number of heap allocations |
+| `runtime.MemStats.Frees` | Number of heap deallocations |
+| `runtime.MemStats.HeapAlloc` | Heap bytes allocated and in use |
+| `runtime.MemStats.HeapSys` | Heap bytes from OS |
+| `runtime.MemStats.HeapIdle` | Idle heap bytes |
+| `runtime.MemStats.HeapInuse` | In-use heap bytes |
+| `runtime.MemStats.HeapReleased` | Heap bytes released to OS |
+| `runtime.MemStats.HeapObjects` | Number of heap objects |
+
+### Garbage Collection
+
+| Metric | Description |
+|--------|-------------|
+| `runtime.MemStats.NumGC` | Number of completed GC cycles |
+| `runtime.MemStats.PauseNs` | GC pause durations (histogram) |
+| `runtime.MemStats.PauseTotalNs` | Cumulative GC pause time |
+| `runtime.MemStats.GCCPUFraction` | Fraction of CPU used by GC |
+| `runtime.MemStats.LastGC` | Time of last GC |
+| `runtime.MemStats.NextGC` | Target heap size for next GC |
+
+### Runtime Details
+
+| Metric | Description |
+|--------|-------------|
+| `runtime.NumGoroutine` | Number of goroutines |
+| `runtime.NumThread` | Number of OS threads |
+| `runtime.NumCgoCall` | Number of CGO calls |
+| `runtime.ReadMemStats` | Time to read memory stats |
+
+## Blockchain Metrics
+
+Monitor blockchain-specific operations:
+
+### Block Processing
+
+Track block import and processing:
+- Block import time
+- Block size
+- Transaction count per block
+- Gas used per block
+- Uncle rate
+
+### Transaction Pool
+
+Monitor mempool activity:
+- Pending transactions
+- Queued transactions
+- Transaction replacement rate
+- Pool size limits
+
+### P2P Networking
+
+Network connectivity metrics:
+- Active peer count
+- Peer connect/disconnect events
+- Inbound/outbound connections
+- Data sent/received per peer
+- Protocol handshake success rate
+
+### Consensus
+
+PoSV consensus metrics:
+- Validator status
+- Block signing success rate
+- Missed blocks
+- Checkpoint events
+
+## Metric Types
+
+Viction uses several metric types:
+
+### Counter
+
+Monotonically increasing values:
+```go
+counter.Inc(1)  // Increment by 1
+```
+
+### Gauge
+
+Values that can increase or decrease:
+```go
+gauge.Update(42)  // Set to specific value
+```
+
+### Meter
+
+Measures rate of events:
+```go
+meter.Mark(n)  // Record n events
+```
+
+Provides:
+- Count
+- Mean rate
+- 1/5/15 minute moving average
+
+### Timer
+
+Measures duration and rate:
+```go
+timer.UpdateSince(startTime)
+```
+
+Provides:
+- Count
+- Mean/min/max duration
+- Percentiles (50th, 75th, 95th, 99th, 99.9th)
+- Rate metrics
+
+### Histogram
+
+Measures distribution of values:
+```go
+histogram.Update(value)
+```
+
+Provides:
+- Count
+- Mean/min/max
+- Percentiles
+
+## Monitoring Integrations
+
+### Prometheus
+
+Export metrics to Prometheus:
+
+1. **Enable metrics HTTP endpoint:**
+```bash
+tomo --metrics --metrics.addr 0.0.0.0 --metrics.port 6060
+```
+
+2. **Configure Prometheus scraping** (`prometheus.yml`):
+```yaml
+scrape_configs:
+  - job_name: 'viction'
+    static_configs:
+      - targets: ['localhost:6060']
+    metrics_path: '/debug/metrics/prometheus'
+    scrape_interval: 15s
+```
+
+3. **Query metrics in Prometheus:**
+```promql
+rate(system_disk_writebytes[5m])
+rate(system_memory_allocs[1m])
+```
+
+### Grafana
+
+Visualize metrics with Grafana:
+
+1. Add Prometheus data source
+2. Import Viction dashboard template
+3. Create custom dashboards for your needs
+
+**Example dashboard panels:**
+- CPU and memory usage over time
+- Block height and sync status
+- Transaction pool size
+- Peer count
+- Disk I/O rates
+
+### InfluxDB
+
+The metrics library supports InfluxDB export for time-series storage.
+
+### Graphite
+
+Export to Graphite for legacy monitoring systems.
+
+## Monitoring Best Practices
+
+### Alert Thresholds
+
+Set alerts for critical conditions:
+
+**High priority:**
+- Node not syncing (block height not increasing)
+- Peer count below minimum (< 3)
+- Disk space below 10%
+- Memory usage above 90%
+- Masternode missing blocks
+
+**Medium priority:**
+- High CPU usage (> 80% sustained)
+- Large transaction pool (> 1000 pending)
+- Slow block processing
+- GC pause time increasing
+
+**Low priority:**
+- Peer churn rate high
+- Transaction replacement rate high
+
+### Monitoring Queries
+
+**Check sync status:**
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  --data '{"jsonrpc":"2.0","method":"eth_syncing","params":[],"id":1}' \
+  http://localhost:8545
+```
+
+**Check peer count:**
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  --data '{"jsonrpc":"2.0","method":"net_peerCount","params":[],"id":1}' \
+  http://localhost:8545
+```
+
+**Check block number:**
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' \
+  http://localhost:8545
+```
+
+### Resource Planning
+
+Monitor trends to plan capacity:
+
+1. **Database growth rate**: Track disk usage over time
+2. **Memory requirements**: Monitor peak memory usage
+3. **CPU utilization**: Identify bottlenecks
+4. **Network bandwidth**: Plan for peak loads
+
+## Health Checks
+
+Implement automated health checks:
+
+```bash
+#!/bin/bash
+# health-check.sh
+
+# Check if process is running
+if ! pgrep -x "tomo" > /dev/null; then
+    echo "CRITICAL: Node process not running"
+    exit 2
+fi
+
+# Check if syncing
+SYNC=$(curl -s -X POST -H "Content-Type: application/json" \
+  --data '{"jsonrpc":"2.0","method":"eth_syncing","params":[],"id":1}' \
+  http://localhost:8545 | jq -r '.result')
+
+if [ "$SYNC" != "false" ]; then
+    echo "WARNING: Node is syncing"
+    exit 1
+fi
+
+# Check peer count
+PEERS=$(curl -s -X POST -H "Content-Type: application/json" \
+  --data '{"jsonrpc":"2.0","method":"net_peerCount","params":[],"id":1}' \
+  http://localhost:8545 | jq -r '.result')
+
+PEER_COUNT=$((16#${PEERS#0x}))
+
+if [ "$PEER_COUNT" -lt 3 ]; then
+    echo "WARNING: Low peer count: $PEER_COUNT"
+    exit 1
+fi
+
+echo "OK: Node healthy, $PEER_COUNT peers"
+exit 0
+```
+
+## Log Analysis
+
+Monitor logs for important events:
+
+**Successful block creation (masternode):**
+```
+grep "Successfully sealed new block" /var/log/viction/node.log
+```
+
+**Block import:**
+```
+grep "Imported new chain segment" /var/log/viction/node.log
+```
+
+**Peer connections:**
+```
+grep -E "Peer connected|Peer disconnected" /var/log/viction/node.log
+```
+
+**Errors:**
+```
+grep -i error /var/log/viction/node.log
+```
+
+## Performance Tuning
+
+Use metrics to optimize performance:
+
+1. **High GC pause time**: Increase GOGC environment variable
+2. **High memory usage**: Reduce cache sizes
+3. **Slow disk I/O**: Use faster storage (SSD/NVMe)
+4. **CPU bottlenecks**: Increase worker threads
+5. **Network saturation**: Adjust max peers
+
+## Monitoring Checklist
+
+- [ ] Metrics collection enabled
+- [ ] HTTP metrics endpoint secured
+- [ ] Prometheus/monitoring system configured
+- [ ] Grafana dashboards created
+- [ ] Critical alerts configured
+- [ ] Health check script deployed
+- [ ] Log aggregation configured
+- [ ] Capacity planning metrics tracked
+- [ ] Alert escalation procedures documented
+- [ ] On-call rotation established

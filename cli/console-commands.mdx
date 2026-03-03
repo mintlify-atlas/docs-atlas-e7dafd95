@@ -1,0 +1,613 @@
+---
+title: 'Console Commands'
+description: 'Interactive JavaScript console for Viction blockchain interaction'
+---
+
+## Overview
+
+The Viction console is an interactive JavaScript runtime environment that provides a powerful interface for interacting with a Viction node. It exposes the full Web3 JavaScript API along with node administration interfaces.
+
+## Commands
+
+### console
+
+Start an interactive JavaScript environment with a new or existing Viction node.
+
+```bash
+tomo console [options]
+```
+
+#### Description
+
+The `console` command starts a full Viction node and attaches an interactive JavaScript console to it. This is the primary method for local node interaction and administration.
+
+The console exposes:
+- Complete Web3 JavaScript Ðapp API
+- Node administration interface
+- Account management functions
+- Network and peer management
+- Blockchain query capabilities
+
+#### Options
+
+The console command accepts all standard node flags plus console-specific options:
+
+<ParamField path="jspath" type="string" default=".">
+  JavaScript root path for `loadScript` command
+</ParamField>
+
+<ParamField path="exec" type="string">
+  Execute JavaScript statement and exit (non-interactive mode)
+</ParamField>
+
+<ParamField path="preload" type="string">
+  Comma separated list of JavaScript files to preload into the console
+</ParamField>
+
+#### Interactive Example
+
+```bash
+tomo console
+```
+
+This starts a node and opens the console:
+
+```javascript
+Welcome to the Tomo JavaScript console!
+
+instance: tomo/v1.0.0-stable/linux-amd64/go1.21.0
+at block: 12345678 (Mon, 01 Jan 2024 12:00:00 UTC)
+ datadir: /home/user/.tomo
+ modules: admin:1.0 debug:1.0 eth:1.0 miner:1.0 net:1.0 personal:1.0 rpc:1.0 txpool:1.0 web3:1.0
+
+>
+```
+
+#### Execute Single Command
+
+```bash
+tomo console --exec "eth.blockNumber"
+```
+
+Output:
+```
+12345678
+```
+
+#### Preload Scripts
+
+```bash
+tomo console --preload "/path/to/script1.js,/path/to/script2.js"
+```
+
+### attach
+
+Connect to an already running Viction node.
+
+```bash
+tomo attach [endpoint] [options]
+```
+
+#### Description
+
+The `attach` command connects to a running Viction node via IPC, WebSocket, or HTTP and opens an interactive JavaScript console. This is useful for:
+
+- Managing a node running as a background service
+- Connecting to remote nodes
+- Running multiple console sessions on the same node
+
+#### Endpoint Formats
+
+<ParamField path="IPC" type="string">
+  `tomo attach /path/to/tomo.ipc`
+  
+  Connects via IPC socket (most secure, local only)
+</ParamField>
+
+<ParamField path="WebSocket" type="string">
+  `tomo attach ws://hostname:8546`
+  
+  Connects via WebSocket (supports remote connections)
+</ParamField>
+
+<ParamField path="HTTP" type="string">
+  `tomo attach http://hostname:8545`
+  
+  Connects via HTTP RPC (supports remote connections)
+</ParamField>
+
+#### Options
+
+<ParamField path="jspath" type="string" default=".">
+  JavaScript root path for `loadScript` command
+</ParamField>
+
+<ParamField path="exec" type="string">
+  Execute JavaScript statement and exit
+</ParamField>
+
+<ParamField path="preload" type="string">
+  Comma separated list of JavaScript files to preload
+</ParamField>
+
+<ParamField path="datadir" type="string">
+  Data directory for finding the default IPC endpoint
+</ParamField>
+
+#### Examples
+
+**Attach via IPC (default):**
+
+```bash
+tomo attach
+```
+
+This connects to the default IPC endpoint: `~/.tomo/tomo.ipc`
+
+**Attach via IPC with custom path:**
+
+```bash
+tomo attach /custom/path/tomo.ipc
+```
+
+**Attach via WebSocket:**
+
+```bash
+tomo attach ws://localhost:8546
+```
+
+**Attach via HTTP:**
+
+```bash
+tomo attach http://localhost:8545
+```
+
+**Execute command on remote node:**
+
+```bash
+tomo attach http://remote-node:8545 --exec "eth.blockNumber"
+```
+
+**Attach with custom datadir:**
+
+```bash
+tomo attach --datadir /custom/datadir
+```
+
+### js
+
+Execute JavaScript files without interactive mode.
+
+```bash
+tomo js <jsfile> [jsfile2...] [options]
+```
+
+#### Description
+
+The `js` command starts an ephemeral Viction node, executes the specified JavaScript files in sequence, and then shuts down. This is useful for:
+
+- Automated blockchain tasks
+- Scripted deployments
+- Batch operations
+- Testing and development
+
+#### Options
+
+Accepts all standard node flags plus:
+
+<ParamField path="jspath" type="string" default=".">
+  JavaScript root path for relative file paths
+</ParamField>
+
+<ParamField path="preload" type="string">
+  Comma separated list of JavaScript files to preload before execution
+</ParamField>
+
+#### Example Scripts
+
+**check_balance.js:**
+
+```javascript
+var account = eth.accounts[0];
+var balance = web3.fromWei(eth.getBalance(account), "ether");
+console.log("Account:", account);
+console.log("Balance:", balance, "VIC");
+```
+
+**deploy_contract.js:**
+
+```javascript
+var abi = [...]; // Contract ABI
+var bytecode = "0x..."; // Contract bytecode
+
+personal.unlockAccount(eth.accounts[0], "password", 300);
+
+var contract = eth.contract(abi);
+var deployTx = contract.new({
+  from: eth.accounts[0],
+  data: bytecode,
+  gas: 3000000
+}, function(err, contract) {
+  if (!err && contract.address) {
+    console.log("Contract deployed at:", contract.address);
+  }
+});
+```
+
+#### Usage
+
+```bash
+tomo js check_balance.js
+```
+
+```bash
+tomo js deploy_contract.js setup.js
+```
+
+<Info>
+  The node will wait for pending callbacks to complete. Press Ctrl-C to force exit.
+</Info>
+
+## JavaScript API
+
+The console exposes several API modules:
+
+### Web3 Modules
+
+<Accordion title="eth - Ethereum/Viction Protocol">
+  ```javascript
+  eth.accounts                    // List accounts
+  eth.blockNumber                 // Current block number
+  eth.getBalance(address)         // Get account balance
+  eth.sendTransaction({...})      // Send transaction
+  eth.getBlock(number)            // Get block by number
+  eth.getTransaction(hash)        // Get transaction by hash
+  eth.syncing                     // Sync status
+  eth.mining                      // Mining/staking status
+  ```
+</Accordion>
+
+<Accordion title="personal - Account Management">
+  ```javascript
+  personal.newAccount(password)           // Create new account
+  personal.listAccounts                   // List all accounts
+  personal.unlockAccount(addr, pass, duration)  // Unlock account
+  personal.lockAccount(addr)              // Lock account
+  personal.sign(data, addr, pass)         // Sign data
+  ```
+</Accordion>
+
+<Accordion title="net - Network Information">
+  ```javascript
+  net.version        // Network ID
+  net.listening      // Listening status
+  net.peerCount      // Number of connected peers
+  ```
+</Accordion>
+
+<Accordion title="admin - Node Administration">
+  ```javascript
+  admin.nodeInfo                 // Node information
+  admin.peers                    // Connected peers
+  admin.addPeer(enode)          // Add peer
+  admin.removePeer(enode)       // Remove peer
+  admin.startRPC(...)           // Start RPC server
+  admin.stopRPC()               // Stop RPC server
+  admin.startWS(...)            // Start WebSocket server
+  admin.stopWS()                // Stop WebSocket server
+  ```
+</Accordion>
+
+<Accordion title="txpool - Transaction Pool">
+  ```javascript
+  txpool.status                  // Pool status
+  txpool.content                 // Pool content
+  txpool.inspect                 // Inspect transactions
+  ```
+</Accordion>
+
+<Accordion title="miner - Staking/Mining">
+  ```javascript
+  miner.start()                  // Start staking
+  miner.stop()                   // Stop staking
+  miner.setEtherbase(address)    // Set coinbase address
+  miner.setExtra(data)           // Set extra data
+  ```
+</Accordion>
+
+<Accordion title="debug - Debugging">
+  ```javascript
+  debug.traceTransaction(hash)         // Trace transaction
+  debug.traceBlock(number)             // Trace block
+  debug.verbosity(level)               // Set log verbosity
+  debug.vmodule(pattern)               // Set module verbosity
+  debug.backtraceAt(location)          // Set backtrace location
+  ```
+</Accordion>
+
+<Accordion title="web3 - Utility Functions">
+  ```javascript
+  web3.toWei(amount, unit)             // Convert to Wei
+  web3.fromWei(amount, unit)           // Convert from Wei
+  web3.toHex(value)                    // Convert to hex
+  web3.toAscii(hex)                    // Convert to ASCII
+  web3.sha3(string)                    // Keccak-256 hash
+  web3.isAddress(address)              // Validate address
+  ```
+</Accordion>
+
+## Console Features
+
+### Command History
+
+The console maintains command history across sessions:
+
+- **Up/Down arrows**: Navigate history
+- **Ctrl+R**: Reverse history search
+- **History file**: `~/.tomo/history`
+
+### Tab Completion
+
+Press Tab to auto-complete:
+
+```javascript
+> eth.bl[TAB]
+eth.blockNumber
+
+> eth.get[TAB]
+eth.getBalance          eth.getBlock           eth.getTransaction
+eth.getBlockByHash      eth.getCode            eth.getTransactionCount
+```
+
+### Loading Scripts
+
+```javascript
+> loadScript("/path/to/script.js")
+true
+```
+
+### Pretty Printing
+
+Large objects are automatically formatted:
+
+```javascript
+> eth.getBlock("latest")
+{
+  difficulty: 2,
+  extraData: "0x...",
+  gasLimit: 84000000,
+  gasUsed: 126000,
+  hash: "0x...",
+  miner: "0x...",
+  number: 12345678,
+  timestamp: 1704110400,
+  transactions: [...]
+}
+```
+
+## Common Console Tasks
+
+### Check Node Status
+
+```javascript
+// Check sync status
+eth.syncing
+
+// Get current block
+eth.blockNumber
+
+// Check peer count
+net.peerCount
+
+// View connected peers
+admin.peers
+```
+
+### Account Operations
+
+```javascript
+// List accounts
+eth.accounts
+
+// Check balance (in Wei)
+eth.getBalance(eth.accounts[0])
+
+// Check balance (in VIC)
+web3.fromWei(eth.getBalance(eth.accounts[0]), "ether")
+
+// Create new account
+personal.newAccount("your-password")
+
+// Unlock account for 5 minutes
+personal.unlockAccount(eth.accounts[0], "password", 300)
+```
+
+### Send Transactions
+
+```javascript
+// Send VIC
+eth.sendTransaction({
+  from: eth.accounts[0],
+  to: "0xRecipientAddress",
+  value: web3.toWei(10, "ether"),
+  gas: 21000
+})
+
+// Send with password unlock
+personal.sendTransaction({
+  from: eth.accounts[0],
+  to: "0xRecipientAddress",
+  value: web3.toWei(10, "ether")
+}, "password")
+```
+
+### Query Blockchain
+
+```javascript
+// Get latest block
+eth.getBlock("latest")
+
+// Get block by number
+eth.getBlock(12345678)
+
+// Get transaction
+eth.getTransaction("0x...")
+
+// Get transaction receipt
+eth.getTransactionReceipt("0x...")
+
+// Get account transaction count
+eth.getTransactionCount(eth.accounts[0])
+```
+
+### Smart Contract Interaction
+
+```javascript
+// Load contract ABI
+var abi = [...]
+
+// Create contract instance
+var contract = eth.contract(abi).at("0xContractAddress")
+
+// Call read-only function
+contract.balanceOf(eth.accounts[0])
+
+// Send transaction to contract
+contract.transfer("0xRecipient", 1000, {
+  from: eth.accounts[0],
+  gas: 100000
+})
+```
+
+### Masternode Management
+
+```javascript
+// Check if staking
+miner.mining
+
+// Start staking
+miner.start()
+
+// Stop staking
+miner.stop()
+
+// Set masternode address
+miner.setEtherbase("0xYourMasternodeAddress")
+```
+
+## Security Considerations
+
+<Warning>
+  **IPC vs HTTP/WebSocket**
+  
+  IPC is the most secure connection method as it's limited to local access. When using HTTP or WebSocket, ensure proper firewall rules and consider using authentication.
+</Warning>
+
+<Warning>
+  **Personal API**
+  
+  Never expose the `personal` module over HTTP/WebSocket on public networks. It allows account management and can be exploited.
+</Warning>
+
+<Warning>
+  **Unlocking Accounts**
+  
+  When unlocking accounts, use the minimum required duration. Never leave accounts unlocked indefinitely.
+</Warning>
+
+## Tips and Tricks
+
+### Create Aliases
+
+Create convenient aliases for common operations:
+
+```javascript
+// Save in a preload script
+var myAccount = eth.accounts[0];
+
+function balance(addr) {
+  return web3.fromWei(eth.getBalance(addr || myAccount), "ether");
+}
+
+function send(to, amount) {
+  return eth.sendTransaction({
+    from: myAccount,
+    to: to,
+    value: web3.toWei(amount, "ether")
+  });
+}
+```
+
+Then use:
+
+```bash
+tomo console --preload aliases.js
+```
+
+```javascript
+> balance()
+100.5
+
+> send("0xRecipient", 10)
+```
+
+### Monitor Events
+
+```javascript
+// Watch for new blocks
+var filter = eth.filter("latest");
+filter.watch(function(error, blockHash) {
+  console.log("New block:", blockHash);
+});
+
+// Stop watching
+filter.stopWatching();
+```
+
+### Exit Console
+
+To exit the console:
+
+```javascript
+exit
+```
+
+or press `Ctrl+D`
+
+## Troubleshooting
+
+### Cannot Connect via Attach
+
+1. Ensure the node is running
+2. Verify the endpoint path/URL
+3. For WebSocket/HTTP, ensure the server is enabled:
+   ```bash
+   tomo --ws --wsaddr 0.0.0.0 --wsport 8546
+   tomo --rpc --rpcaddr 0.0.0.0 --rpcport 8545
+   ```
+
+### Module Not Available
+
+If a module (e.g., `personal`) is not available:
+
+1. Check which modules are enabled (shown at console start)
+2. For attach via HTTP/WS, enable the module:
+   ```bash
+   tomo --rpc --rpcapi eth,net,web3,personal
+   tomo --ws --wsapi eth,net,web3,personal
+   ```
+
+### Script Execution Errors
+
+If scripts fail with `loadScript`:
+
+1. Verify the file path is correct
+2. Check file permissions
+3. Use absolute paths or set `--jspath` correctly
+4. Look for syntax errors in the script
+
+## See Also
+
+- [tomo Command](/cli/tomo-command) - Main command overview
+- [Account Commands](/cli/account-commands) - Account management
+- [Flags Reference](/cli/flags-reference) - RPC and WebSocket configuration flags

@@ -1,0 +1,424 @@
+---
+title: Running a Masternode
+description: Learn how to set up and run a Viction masternode with staking enabled
+---
+
+A masternode is a special type of full node that participates in block validation and creation. Viction relies on a system of 150 masternodes with a Proof of Stake Voting (PoSV) consensus mechanism.
+
+## What is a Masternode?
+
+Viction masternodes:
+- Validate and create new blocks
+- Participate in the PoSV consensus mechanism
+- Earn block rewards and transaction fees
+- Require staking to be eligible
+- Must maintain high uptime and performance
+
+## Requirements
+
+<CardGroup cols={2}>
+  <Card title="Hardware" icon="server">
+    - 8GB+ RAM
+    - 4+ CPU cores
+    - 500GB+ SSD storage
+    - 100Mbps+ network
+  </Card>
+  <Card title="Staking" icon="coins">
+    - 50,000 VIC tokens
+    - Registered on VicMaster
+    - Active voting support
+    - Unlocked account
+  </Card>
+</CardGroup>
+
+<Warning>
+  Running a masternode requires a significant stake and technical expertise. Ensure you understand the requirements and risks before proceeding.
+</Warning>
+
+## Masternode Setup
+
+<Steps>
+  <Step title="Prepare your account">
+    Create or import an account that holds your masternode stake:
+
+    <CodeGroup>
+      ```bash Create New Account
+      tomo account new --password /path/to/password_file --keystore /path/to/keystore_dir
+      ```
+
+      ```bash Import Existing Account
+      tomo account import /path/to/privatekey_file --password /path/to/password_file --keystore /path/to/keystore_dir
+      ```
+    </CodeGroup>
+
+    <Note>
+      Save your keystore files and password securely. Loss of these files means loss of access to your funds.
+    </Note>
+  </Step>
+
+  <Step title="Register on VicMaster">
+    Before running your masternode, you must:
+    
+    1. Hold at least 50,000 VIC tokens in your account
+    2. Register your masternode on [VicMaster](https://vicmaster.xyz)
+    3. Provide your node's coinbase address
+    4. Wait for community voting to reach the top 150
+
+    <Info>
+      Your node will only produce blocks if it's in the top 150 masternodes by voting power.
+    </Info>
+  </Step>
+
+  <Step title="Configure and start the node">
+    Run your node with staking enabled:
+
+    ```bash
+    tomo --datadir /path/to/data_dir \
+      --keystore /path/to/keystore_dir \
+      --password /path/to/password_file --unlock 0 \
+      --identity my-masternode \
+      --networkid 88 \
+      --syncmode "full" --gcmode "full" \
+      --mine \
+      --gasprice 250000000 \
+      --targetgaslimit 30000000 \
+      --rpc --rpcaddr 0.0.0.0 --rpcport 8545 --rpcvhosts "*" --rpccorsdomain "*" \
+      --rpcapi "eth,net,web3,posv" \
+      --ws --wsaddr 0.0.0.0 --wsport 8546 --wsorigins "*" \
+      --port 30303 \
+      --maxpeers 25 \
+      --ethstats my-masternode:getty-site-pablo-auger-room-sos-blair-shin-whiz-delhi@stats.viction.xyz \
+      --verbosity 3
+    ```
+
+    Key flags for masternodes:
+    - `--mine`: Enables staking/mining mode
+    - `--unlock 0`: Unlocks your account for signing blocks
+    - `--gasprice 250000000`: Sets minimum gas price for transactions
+    - `--targetgaslimit 30000000`: Sets target gas limit for blocks
+  </Step>
+
+  <Step title="Verify masternode status">
+    Check that your masternode is recognized:
+
+    ```bash
+    curl -X POST --data '{"jsonrpc":"2.0","method":"posv_getMasternodes","params":[],"id":1}' \
+      -H "Content-Type: application/json" http://localhost:8545
+    ```
+
+    Monitor your node on:
+    - [VicScan](https://vicscan.xyz) - View your masternode status
+    - [Network Stats](https://stats.viction.xyz) - Real-time network monitoring
+  </Step>
+</Steps>
+
+## Masternode-Specific Configuration
+
+### Staking Options
+
+<ResponseField name="mine" type="boolean" required>
+  Enables staking mode. Your node will participate in block creation if it's a valid masternode.
+</ResponseField>
+
+<ResponseField name="minerthreads" type="number">
+  Number of CPU threads to use for staking operations (default: 1)
+  
+  ```bash
+  --minerthreads 2
+  ```
+</ResponseField>
+
+<ResponseField name="etherbase" type="string">
+  Public address for block mining rewards. If not specified, uses the first unlocked account.
+  
+  ```bash
+  --etherbase 0x1234567890123456789012345678901234567890
+  ```
+</ResponseField>
+
+<ResponseField name="targetgaslimit" type="number">
+  Target gas limit for blocks (default: 30000000)
+  
+  ```bash
+  --targetgaslimit 30000000
+  ```
+</ResponseField>
+
+<ResponseField name="gasprice" type="number">
+  Minimum gas price to accept for mining transactions (in wei)
+  
+  ```bash
+  --gasprice 250000000
+  ```
+</ResponseField>
+
+### API Configuration
+
+For masternodes, enable the PoSV API to allow querying consensus-specific data:
+
+```bash
+--rpcapi "eth,net,web3,posv"
+```
+
+Available APIs:
+- `eth`: Standard Ethereum JSON-RPC
+- `net`: Network information
+- `web3`: Web3 utilities
+- `posv`: Viction consensus data
+- `debug`: Debug APIs (use with caution)
+- `personal`: Account management (use with caution)
+
+### Network Configuration
+
+<Tabs>
+  <Tab title="NAT Configuration">
+    If your node is behind NAT, configure external IP:
+
+    ```bash
+    --nat extip:YOUR_PUBLIC_IP
+    ```
+
+    Other NAT options:
+    ```bash
+    --nat any        # Automatic NAT detection
+    --nat upnp       # Use UPnP
+    --nat pmp        # Use NAT-PMP
+    --nat none       # Disable NAT
+    ```
+  </Tab>
+
+  <Tab title="Peer Management">
+    Configure peer connections:
+
+    ```bash
+    --maxpeers 25                  # Maximum number of peers
+    --maxpendpeers 10              # Maximum pending peer connections
+    --bootnodes "enode://..."      # Custom bootnodes
+    ```
+  </Tab>
+
+  <Tab title="Port Configuration">
+    Ensure these ports are accessible:
+
+    ```bash
+    --port 30303      # P2P port (must be open)
+    --rpcport 8545    # HTTP-RPC port
+    --wsport 8546     # WebSocket-RPC port
+    ```
+
+    <Warning>
+      Port 30303 must be open for P2P communication. Masternodes with blocked ports may be penalized.
+    </Warning>
+  </Tab>
+</Tabs>
+
+## Masternode Operations
+
+### Automatic Validation
+
+The Viction node automatically detects if your account is a registered masternode:
+
+1. **At startup**: Checks if the unlocked account is a valid masternode
+2. **At checkpoints**: Re-validates masternode status
+3. **Auto-enable**: Starts staking if masternode is valid
+4. **Auto-disable**: Stops staking if masternode status is lost
+
+From the logs (cmd/tomo/main.go:312-359):
+```go
+ok, err := ethereum.ValidateMasternode()
+if ok {
+    log.Info("Masternode found. Enabling staking mode...")
+    ethereum.StartStaking(true)
+    log.Info("Enabled mining node!!!")
+}
+```
+
+### Monitoring Masternode Status
+
+Your node logs will show:
+
+```
+INFO Masternode found. Enabling staking mode...
+INFO Enabled mining node!!!
+```
+
+If you see:
+```
+WARN Only masternode can propose and verify blocks. Cancelling staking on this node...
+```
+
+This means your node is not recognized as a masternode. Check:
+- Registration on VicMaster
+- Voting power (must be in top 150)
+- Unlocked account matches registered address
+
+## Reward Collection
+
+### Storing Reward Reports
+
+To track masternode rewards:
+
+```bash
+--store-reward --gcmode archive
+```
+
+<Warning>
+  `--store-reward` requires archive mode and significantly increases disk usage. Only enable if you need historical reward data.
+</Warning>
+
+Rewards are stored in: `{datadir}/tomo/rewards/`
+
+### Reward Distribution
+
+Masternodes earn:
+- **Block rewards**: For creating blocks
+- **Transaction fees**: From transactions in created blocks
+- **Voter rewards**: Distributed to voters who staked with your masternode
+
+Rewards are automatically distributed to the coinbase address at the end of each epoch.
+
+## High Availability Setup
+
+<Steps>
+  <Step title="Infrastructure">
+    - Use dedicated servers with high uptime SLAs
+    - Implement monitoring and alerting
+    - Set up automatic restarts on failure
+    - Use SSD storage for better I/O performance
+  </Step>
+
+  <Step title="Network">
+    - Ensure stable, high-bandwidth internet
+    - Configure firewall rules properly
+    - Set up DDoS protection
+    - Use static IP address
+  </Step>
+
+  <Step title="Monitoring">
+    Monitor these metrics:
+    - Node sync status
+    - Peer count
+    - Block creation rate
+    - System resources (CPU, RAM, disk)
+    - Network connectivity
+
+    Enable ethstats reporting:
+    ```bash
+    --ethstats your-node:secret@stats.viction.xyz
+    ```
+  </Step>
+
+  <Step title="Backup">
+    - Regularly backup keystore files
+    - Store backups securely offline
+    - Document recovery procedures
+    - Test recovery process
+  </Step>
+</Steps>
+
+## Performance Tuning
+
+### Thread Configuration
+
+```bash
+--minerthreads 2  # Adjust based on CPU cores
+```
+
+### Memory Optimization
+
+```bash
+--cache 2048               # Total cache size in MB
+--cache.database 75        # Database cache percentage
+--cache.gc 25              # GC cache percentage
+```
+
+### Transaction Pool
+
+```bash
+--txpool.globalslots 8192  # Total executable transaction slots
+--txpool.globalqueue 2048  # Total non-executable transaction slots
+--txpool.accountslots 16   # Per-account executable slots
+--txpool.accountqueue 64   # Per-account non-executable slots
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Masternode not mining">
+    Check:
+    - Account is unlocked: `--unlock 0`
+    - Mining is enabled: `--mine`
+    - Node is registered on VicMaster
+    - Node is in top 150 by voting power
+    - Node is fully synced
+    - Logs show "Masternode found. Enabling staking mode..."
+  </Accordion>
+
+  <Accordion title="Lost masternode status">
+    If your node stops mining:
+    - Check voting power on VicMaster
+    - Verify account balance meets minimum stake
+    - Ensure node hasn't been penalized for downtime
+    - Check if account is still unlocked
+  </Accordion>
+
+  <Accordion title="High resource usage">
+    Optimize:
+    - Reduce `--cache` value
+    - Lower `--minerthreads`
+    - Use `--gcmode full` instead of archive
+    - Reduce `--maxpeers`
+    - Disable `--store-reward` if not needed
+  </Accordion>
+
+  <Accordion title="Network connectivity issues">
+    - Verify port 30303 is open
+    - Check firewall rules
+    - Try adding bootnodes manually
+    - Verify NAT configuration
+    - Check if IP is blacklisted
+  </Accordion>
+</AccordionGroup>
+
+## Security Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Key Management" icon="key">
+    - Never share private keys
+    - Use hardware security modules for production
+    - Regularly rotate passwords
+    - Keep keystore backups offline
+  </Card>
+
+  <Card title="Network Security" icon="shield">
+    - Use firewall to restrict RPC access
+    - Don't expose `personal` API publicly
+    - Enable HTTPS for RPC endpoints
+    - Implement rate limiting
+  </Card>
+
+  <Card title="System Security" icon="lock">
+    - Keep OS and software updated
+    - Use non-root user for node process
+    - Enable disk encryption
+    - Monitor system logs
+  </Card>
+
+  <Card title="Operational Security" icon="eye">
+    - Monitor node 24/7
+    - Set up automated alerts
+    - Have incident response plan
+    - Regular security audits
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Configuration Reference" icon="book" href="/nodes/configuration">
+    Complete list of all configuration flags
+  </Card>
+  <Card title="Docker Deployment" icon="docker" href="/nodes/docker-deployment">
+    Deploy your masternode with Docker
+  </Card>
+</CardGroup>

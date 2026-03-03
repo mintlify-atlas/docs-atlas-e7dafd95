@@ -1,0 +1,583 @@
+---
+title: Installation
+description: Comprehensive installation guide for Viction blockchain node on all platforms
+---
+
+# Installation Guide
+
+This guide covers all methods for installing and running a Viction node, including building from source, using pre-built binaries, and Docker deployment.
+
+## System Requirements
+
+### Minimum Requirements
+
+- **CPU**: 2+ cores
+- **RAM**: 4GB minimum, 8GB recommended
+- **Storage**: 100GB+ SSD (blockchain grows over time)
+- **Network**: Stable internet connection
+- **OS**: Linux, macOS, or Windows
+
+### Software Prerequisites
+
+<Tabs>
+  <Tab title="Linux">
+    - Go 1.18 or higher
+    - GCC compiler
+    - Git
+    
+    ```bash Ubuntu/Debian
+    sudo apt-get update
+    sudo apt-get install -y build-essential git golang-1.18
+    ```
+    
+    ```bash CentOS/RHEL
+    sudo yum groupinstall "Development Tools"
+    sudo yum install -y git golang
+    ```
+  </Tab>
+  
+  <Tab title="macOS">
+    - Go 1.18 or higher
+    - Xcode Command Line Tools
+    - Git
+    
+    ```bash Homebrew
+    brew install go git
+    xcode-select --install
+    ```
+  </Tab>
+  
+  <Tab title="Windows">
+    - Go 1.18 or higher from [https://go.dev/dl/](https://go.dev/dl/)
+    - MinGW-w64 GCC compiler
+    - Git for Windows
+    
+    <Tip>
+      Consider using WSL2 (Windows Subsystem for Linux) for better compatibility.
+    </Tip>
+  </Tab>
+</Tabs>
+
+## Installation Methods
+
+### Method 1: Build from Source
+
+Building from source gives you the latest code and full control over the build process.
+
+<Steps>
+  <Step title="Install Go">
+    Download and install Go from [https://go.dev/dl/](https://go.dev/dl/)
+    
+    Verify installation:
+    ```bash
+    go version
+    # Should output: go version go1.18 or higher
+    ```
+  </Step>
+
+  <Step title="Clone Repository">
+    ```bash
+    git clone https://github.com/BuildOnViction/victionchain
+    cd victionchain
+    ```
+  </Step>
+
+  <Step title="Build Binary">
+    Use the build script to compile the `tomo` client:
+    
+    ```bash
+    go run build/ci.go install
+    ```
+    
+    This compiles and installs the binary to `build/bin/tomo`.
+    
+    <Note>
+      The build process may take several minutes depending on your system.
+    </Note>
+  </Step>
+
+  <Step title="Add to PATH (Optional)">
+    Make `tomo` available system-wide:
+    
+    ```bash Linux/macOS
+    sudo cp build/bin/tomo /usr/local/bin/
+    ```
+    
+    ```bash Add to PATH manually
+    export PATH=$PATH:/path/to/victionchain/build/bin
+    echo 'export PATH=$PATH:/path/to/victionchain/build/bin' >> ~/.bashrc
+    source ~/.bashrc
+    ```
+  </Step>
+
+  <Step title="Verify Installation">
+    ```bash
+    tomo version
+    ```
+  </Step>
+</Steps>
+
+### Method 2: Pre-built Binaries
+
+The fastest way to get started is using pre-compiled binaries.
+
+<Steps>
+  <Step title="Download Binary">
+    Visit the [GitHub releases page](https://github.com/BuildOnViction/victionchain/releases) and download the latest release for your platform:
+    
+    ```bash Linux
+    wget https://github.com/BuildOnViction/victionchain/releases/download/v2.5.1/tomo-linux-amd64
+    chmod +x tomo-linux-amd64
+    sudo mv tomo-linux-amd64 /usr/local/bin/tomo
+    ```
+    
+    ```bash macOS
+    wget https://github.com/BuildOnViction/victionchain/releases/download/v2.5.1/tomo-darwin-amd64
+    chmod +x tomo-darwin-amd64
+    sudo mv tomo-darwin-amd64 /usr/local/bin/tomo
+    ```
+  </Step>
+
+  <Step title="Verify Installation">
+    ```bash
+    tomo version
+    ```
+  </Step>
+</Steps>
+
+### Method 3: Docker Installation
+
+Docker provides isolated, reproducible deployments.
+
+<Steps>
+  <Step title="Install Docker">
+    Install Docker Engine from [https://docs.docker.com/engine/install/](https://docs.docker.com/engine/install/)
+    
+    Verify installation:
+    ```bash
+    docker --version
+    ```
+  </Step>
+
+  <Step title="Build Docker Image">
+    **Option A: Build from source**
+    ```bash
+    git clone https://github.com/BuildOnViction/victionchain
+    cd victionchain
+    docker build --file Dockerfile.node -t "buildonviction/node:v2.5.1" .
+    ```
+    
+    **Option B: Pull pre-built image**
+    ```bash
+    docker pull buildonviction/node:v2.5.1
+    ```
+  </Step>
+
+  <Step title="Prepare Directories">
+    Create directories for persistent data:
+    ```bash
+    mkdir -p ~/viction/data ~/viction/keystore
+    ```
+  </Step>
+</Steps>
+
+## Account Management
+
+Before running a node, you need an account to unlock. Viction uses the `tomo account` command for keystore management.
+
+### Create a New Account
+
+<CodeGroup>
+```bash Interactive Mode
+tomo account new
+# You'll be prompted to enter a password
+```
+
+```bash Non-Interactive Mode
+# Create password file first
+echo "your-secure-password" > /path/to/password.txt
+
+# Create account
+tomo account new \
+  --password /path/to/password.txt \
+  --keystore /path/to/keystore
+```
+</CodeGroup>
+
+<Warning>
+  **Important**: Store your password securely! Without it, you cannot unlock your account or access your funds.
+</Warning>
+
+### Import Existing Account
+
+If you have a private key, import it:
+
+```bash
+tomo account import /path/to/private_key.txt \
+  --password /path/to/password.txt \
+  --keystore /path/to/keystore
+```
+
+The private key file should contain your unencrypted private key in hexadecimal format.
+
+### List Accounts
+
+```bash
+tomo account list --keystore /path/to/keystore
+```
+
+### Update Account Password
+
+```bash
+tomo account update <address> --keystore /path/to/keystore
+```
+
+## Network Configuration
+
+### Mainnet Configuration
+
+Connect to Viction mainnet (Chain ID: 88):
+
+```bash
+tomo --datadir ~/viction/mainnet \
+  --keystore ~/viction/keystore \
+  --password ~/viction/password.txt \
+  --unlock 0 \
+  --networkid 88 \
+  --identity "my-mainnet-node" \
+  --gasprice 250000000
+```
+
+**Mainnet Parameters:**
+- Chain ID: `88`
+- Network ID: `88`
+- Block time: 2 seconds
+- Epoch: 900 blocks
+- Consensus: Proof of Stake Voting (PoSV)
+
+### Testnet Configuration
+
+Connect to Viction testnet (Chain ID: 89):
+
+```bash
+tomo --datadir ~/viction/testnet \
+  --keystore ~/viction/keystore \
+  --password ~/viction/password.txt \
+  --unlock 0 \
+  --tomo-testnet \
+  --networkid 89 \
+  --identity "my-testnet-node"
+```
+
+**Testnet Parameters:**
+- Chain ID: `89`
+- Network ID: `89`
+- Use `--tomo-testnet` flag
+- Same consensus parameters as mainnet
+
+## Full Node Configuration
+
+A complete full node configuration with all features enabled:
+
+```bash
+tomo --datadir /data/viction \
+  --keystore /data/keystore \
+  --password /data/password.txt --unlock 0 \
+  --identity "production-node" \
+  --networkid 88 \
+  --gasprice 250000000 \
+  --rpc --rpcaddr 0.0.0.0 --rpcport 8545 \
+  --rpcvhosts "*" --rpccorsdomain "*" \
+  --rpcapi "eth,debug,net,db,personal,web3" \
+  --ws --wsaddr 0.0.0.0 --wsport 8546 --wsorigins "*" \
+  --port 30303 \
+  --syncmode "full" --gcmode "full" \
+  --ethstats my-node:getty-site-pablo-auger-room-sos-blair-shin-whiz-delhi@stats.viction.xyz \
+  --verbosity 3
+```
+
+### Configuration Breakdown
+
+<Accordion title="Core Settings">
+  ```bash
+  --datadir /data/viction          # Blockchain data directory
+  --keystore /data/keystore        # Account keystore directory
+  --password /data/password.txt    # Password file for account
+  --unlock 0                       # Unlock account at index 0
+  --identity "production-node"     # Node name identifier
+  ```
+</Accordion>
+
+<Accordion title="Network Settings">
+  ```bash
+  --networkid 88                   # Network ID (88=mainnet, 89=testnet)
+  --port 30303                     # P2P listening port
+  --nat any                        # NAT port mapping (any|none|upnp|pmp|extip:<IP>)
+  --bootnodes <enode-list>         # Custom bootnode list
+  ```
+</Accordion>
+
+<Accordion title="RPC Settings">
+  ```bash
+  --rpc                            # Enable HTTP-RPC server
+  --rpcaddr 0.0.0.0               # Listening interface (0.0.0.0=all)
+  --rpcport 8545                  # HTTP-RPC port
+  --rpcvhosts "*"                 # Accepted virtual hostnames
+  --rpccorsdomain "*"             # CORS domain
+  --rpcapi "eth,net,web3,..."     # Enabled API modules
+  ```
+  
+  Available API modules:
+  - `eth`: Ethereum JSON-RPC
+  - `net`: Network information
+  - `web3`: Web3 utilities
+  - `personal`: Account management
+  - `db`: Database access
+  - `debug`: Debug and tracing
+</Accordion>
+
+<Accordion title="WebSocket Settings">
+  ```bash
+  --ws                             # Enable WebSocket server
+  --wsaddr 0.0.0.0                # WebSocket interface
+  --wsport 8546                   # WebSocket port
+  --wsorigins "*"                 # Accepted origins
+  --wsapi "eth,net,web3"          # WebSocket API modules
+  ```
+</Accordion>
+
+<Accordion title="Sync & Storage">
+  ```bash
+  --syncmode "full"               # Sync mode: fast|full|light
+  --gcmode "full"                 # Garbage collection: full|archive
+  --store-reward                  # Store reward snapshots (archive mode)
+  ```
+  
+  **Sync Modes:**
+  - `fast`: Fast sync (downloads state snapshots)
+  - `full`: Full verification of all blocks
+  - `light`: Light client mode (minimal storage)
+  
+  **GC Modes:**
+  - `full`: Regular node (pruned state)
+  - `archive`: Archive node (full historical state)
+</Accordion>
+
+<Accordion title="Mining/Staking Settings">
+  ```bash
+  --mine                          # Enable mining/staking
+  --miner.threads 1               # Number of CPU threads for mining
+  --etherbase <address>           # Coinbase address for rewards
+  ```
+</Accordion>
+
+<Accordion title="Monitoring">
+  ```bash
+  --ethstats <name>:<secret>@<host>  # Report to stats dashboard
+  --verbosity 3                      # Log verbosity (0-5)
+  ```
+</Accordion>
+
+## Archive Node Configuration
+
+An archive node stores complete historical state:
+
+```bash
+tomo --datadir /data/archive \
+  --keystore /data/keystore \
+  --password /data/password.txt --unlock 0 \
+  --gcmode "archive" \
+  --store-reward \
+  --syncmode "full" \
+  # ... other flags
+```
+
+<Warning>
+  Archive nodes require significantly more disk space (1TB+) and are needed for:
+  - Historical state queries
+  - Reward tracking
+  - Block explorers
+  - Analytics services
+</Warning>
+
+## Docker Compose Setup
+
+For production deployments, use Docker Compose:
+
+```yaml docker-compose.yml
+version: '3.8'
+
+services:
+  viction:
+    image: buildonviction/node:v2.5.1
+    container_name: viction-node
+    restart: unless-stopped
+    ports:
+      - "8545:8545"   # RPC
+      - "8546:8546"   # WebSocket
+      - "30303:30303" # P2P
+      - "30303:30303/udp"
+    volumes:
+      - ./data:/tomochain/data
+      - ./keystore:/tomochain/keystore
+      - ./password.txt:/tomochain/password
+    environment:
+      - IDENTITY=my-node
+      - NETWORK_ID=88
+      - SYNC_MODE=full
+      - NETSTATS_HOST=stats.viction.xyz
+      - NETSTATS_PORT=443
+      - WS_SECRET=getty-site-pablo-auger-room-sos-blair-shin-whiz-delhi
+      - VERBOSITY=3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "10"
+```
+
+Run with:
+```bash
+docker-compose up -d
+```
+
+## Systemd Service (Linux)
+
+Create a systemd service for automatic startup:
+
+```ini /etc/systemd/system/viction.service
+[Unit]
+Description=Viction Node
+After=network.target
+
+[Service]
+Type=simple
+User=viction
+WorkingDirectory=/home/viction
+ExecStart=/usr/local/bin/tomo \
+  --datadir /data/viction \
+  --keystore /data/keystore \
+  --password /data/password.txt --unlock 0 \
+  --networkid 88 \
+  --identity "production-node" \
+  --gasprice 250000000 \
+  --rpc --rpcaddr 127.0.0.1 --rpcport 8545 \
+  --rpcapi "eth,net,web3" \
+  --verbosity 3
+
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and start:
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable viction
+sudo systemctl start viction
+sudo systemctl status viction
+```
+
+View logs:
+```bash
+sudo journalctl -u viction -f
+```
+
+## Firewall Configuration
+
+Open required ports:
+
+```bash UFW (Ubuntu)
+sudo ufw allow 30303/tcp comment 'Viction P2P'
+sudo ufw allow 30303/udp comment 'Viction P2P discovery'
+# Only if exposing RPC publicly (not recommended)
+# sudo ufw allow 8545/tcp comment 'Viction RPC'
+```
+
+```bash Firewalld (CentOS/RHEL)
+sudo firewall-cmd --permanent --add-port=30303/tcp
+sudo firewall-cmd --permanent --add-port=30303/udp
+sudo firewall-cmd --reload
+```
+
+<Warning>
+  **Security**: Never expose RPC/WebSocket ports (8545, 8546) directly to the internet. Use a reverse proxy with authentication or VPN access.
+</Warning>
+
+## Troubleshooting
+
+### Node Won't Start
+
+<AccordionGroup>
+  <Accordion title="Account unlock fails">
+    **Error**: `Failed to unlock account`
+    
+    **Solution**:
+    - Verify password file exists and is readable
+    - Check password is correct
+    - Ensure keystore path is correct
+    - Try `--unlock 0` or `--unlock <address>`
+  </Accordion>
+
+  <Accordion title="Port already in use">
+    **Error**: `bind: address already in use`
+    
+    **Solution**:
+    - Check if another instance is running: `ps aux | grep tomo`
+    - Change ports with `--port`, `--rpcport`, or `--wsport`
+    - Kill existing process: `pkill tomo`
+  </Accordion>
+
+  <Accordion title="Out of disk space">
+    **Error**: `write: no space left on device`
+    
+    **Solution**:
+    - Check disk usage: `df -h`
+    - Clean old logs
+    - Move datadir to larger partition
+    - For full nodes, consider pruning with `--gcmode full`
+  </Accordion>
+</AccordionGroup>
+
+### Sync Issues
+
+<AccordionGroup>
+  <Accordion title="Stuck at specific block">
+    **Solution**:
+    - Check if your version is up to date
+    - Verify network connectivity
+    - Try different bootnodes
+    - Increase peer count: `--maxpeers 50`
+  </Accordion>
+
+  <Accordion title="Too few peers">
+    **Solution**:
+    - Check firewall allows port 30303
+    - Enable NAT traversal: `--nat upnp`
+    - Add explicit bootnodes: `--bootnodes <enode-urls>`
+    - Set external IP: `--nat extip:<your-public-ip>`
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Get your node running quickly
+  </Card>
+  <Card title="Run a Masternode" icon="server" href="https://docs.viction.xyz/masternode">
+    Become a validator and earn rewards
+  </Card>
+  <Card title="Network Info" icon="network-wired" href="https://docs.viction.xyz/general/network-information">
+    Network parameters and endpoints
+  </Card>
+  <Card title="GitHub Repository" icon="github" href="https://github.com/BuildOnViction/victionchain">
+    Source code and issues
+  </Card>
+</CardGroup>
+
+<Note>
+  For advanced configuration, custom genesis blocks, or private networks, refer to the [full documentation](https://docs.viction.xyz).
+</Note>

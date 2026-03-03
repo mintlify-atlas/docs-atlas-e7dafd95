@@ -1,0 +1,420 @@
+---
+title: "TomoX Lending Protocol"
+description: "Decentralized lending and borrowing protocol with collateralized loans on Viction"
+---
+
+## Overview
+
+TomoX Lending is a decentralized lending and borrowing protocol built on top of TomoX DEX. It enables users to create collateralized loans with configurable terms and interest rates, all executed on-chain.
+
+## Key Features
+
+### Collateralized Lending
+
+- **Over-collateralization**: Loans require collateral exceeding the borrowed amount
+- **Multiple Collateral Types**: Support for various token types as collateral
+- **Dynamic Pricing**: Oracle-based price feeds for collateral valuation
+- **Liquidation Protection**: Automatic liquidation when collateral value drops
+
+### Flexible Terms
+
+- **Configurable Loan Periods**: From 60 seconds to custom durations
+- **Interest Rates**: Market-determined rates through order matching
+- **Auto Top-Up**: Optional automatic collateral additions
+- **Early Repayment**: Loans can be repaid before term expiry
+
+## Architecture
+
+### Lending State Database
+
+Similar to TomoX DEX, lending maintains its own state:
+
+```go
+type Lending struct {
+    Triegc              *prque.Prque
+    StateCache          lendingstate.Database
+    orderNonce          map[common.Address]*big.Int
+    tomox               *tomox.TomoX
+    lendingItemHistory  *lru.Cache
+    lendingTradeHistory *lru.Cache
+}
+```
+
+Source: `tomoxlending/tomoxlending.go:38`
+
+### Lending Order Structure
+
+```go
+type LendingItem struct {
+    Nonce           *big.Int
+    Quantity        *big.Int        // Amount to lend/borrow
+    Interest        *big.Int        // Interest rate (basis points)
+    Relayer         common.Address
+    Term            uint64          // Loan period in seconds
+    UserAddress     common.Address
+    LendingToken    common.Address  // Token to lend/borrow
+    CollateralToken common.Address  // Collateral token
+    AutoTopUp       bool
+    Status          string
+    Side            string          // "BORROW" or "LEND"
+    Type            string          // "LIMIT" or "MARKET"
+    Hash            common.Hash
+    LendingId       uint64
+    LendingTradeId  uint64
+    Signature       *Signature
+}
+```
+
+Source: `tomoxlending/tomoxlending.go:123`
+
+## How It Works
+
+### For Lenders
+
+1. **Create Lending Order**: Specify token, amount, interest rate, and term
+2. **Wait for Match**: Order sits in the lending book until matched
+3. **Loan Execution**: When matched, tokens are locked in the protocol
+4. **Collect Repayment**: Receive principal + interest at term end
+
+### For Borrowers
+
+1. **Create Borrow Order**: Specify token, amount, collateral, interest rate, and term
+2. **Deposit Collateral**: Lock collateral tokens in the protocol
+3. **Receive Loan**: Get lending tokens when order matches
+4. **Repay or Liquidate**: Repay before term end or risk liquidation
+
+## Order Processing
+
+Lending orders are processed similarly to trading orders:
+
+```go
+func (l *Lending) ProcessOrderPending(
+    header *types.Header,
+    coinbase common.Address,
+    chain consensus.ChainContext,
+    pending map[common.Address]types.LendingTransactions,
+    statedb *state.StateDB,
+    lendingStatedb *lendingstate.LendingStateDB,
+    tradingStateDb *tradingstate.TradingStateDB,
+) ([]*lendingstate.LendingItem, map[common.Hash]lendingstate.MatchingResult)
+```
+
+Source: `tomoxlending/tomoxlending.go:103`
+
+### Order Matching
+
+Lending and borrowing orders are matched when:
+
+- **Token Match**: Same lending token and term
+- **Interest Agreement**: Rates are compatible
+- **Collateral Valid**: Sufficient collateral provided
+- **Price Current**: Collateral valuation is up-to-date
+
+## Collateral Management
+
+### Collateral Configuration
+
+Collateral is configured via smart contract:
+
+```solidity
+struct Collateral {
+    uint256 _depositRate;      // Required collateral ratio
+    uint256 _liquidationRate;  // Liquidation threshold
+    uint256 _recallRate;       // Recall threshold
+    mapping(address => Price) _price;
+}
+
+function addCollateral(
+    address token,
+    uint256 depositRate,
+    uint256 liquidationRate,
+    uint256 recallRate
+) public moderatorOnly;
+```
+
+Source: `contracts/tomox/contract/LendingRegistration.sol:31`
+
+### Collateral Rates
+
+- **Deposit Rate**: Minimum collateral ratio (e.g., 150% = 150)
+- **Liquidation Rate**: Auto-liquidation trigger (e.g., 125%)
+- **Recall Rate**: Warning threshold (e.g., 175%)
+
+**Example**: 
+- Deposit Rate: 150% (need $150 collateral for $100 loan)
+- Liquidation Rate: 125% (liquidated if collateral drops to $125)
+- Recall Rate: 175% (warning if collateral exceeds $175)
+
+### Price Oracles
+
+Collateral prices are updated by oracle feeders:
+
+```solidity
+function setCollateralPrice(
+    address token,
+    address lendingToken,
+    uint256 price
+) public {
+    require(msg.sender == ORACLE_PRICE_FEEDER);
+    
+    COLLATERAL_LIST[token]._price[lendingToken] = Price({
+        _price: price,
+        _blockNumber: block.number
+    });
+}
+```
+
+Source: `contracts/tomox/contract/LendingRegistration.sol:126`
+
+### ILO Collaterals
+
+Initial Lending Offering (ILO) tokens can be used as collateral:
+
+- Issued by relayers or token creators
+- Self-managed price feeds (token issuer updates prices)
+- Must be registered separately from standard collaterals
+
+```solidity
+function addILOCollateral(
+    address token,
+    uint256 depositRate,
+    uint256 liquidationRate,
+    uint256 recallRate
+) public {
+    require(!indexOf(COLLATERALS, token), "Invalid ILO collateral");
+    require(TomoXListing.getTokenStatus(token));
+    
+    LAbstractTokenTRC21 t = LAbstractTokenTRC21(token);
+    require(t.issuer() == msg.sender);
+    // ... register collateral
+}
+```
+
+Source: `contracts/tomox/contract/LendingRegistration.sol:150`
+
+## Lending Relayers
+
+Lending relayers operate lending markets:
+
+```solidity
+struct LendingRelayer {
+    uint16 _tradeFee;          // 0-1000 (0-10%)
+    address[] _baseTokens;     // Lending tokens
+    uint256[] _terms;          // Loan periods in seconds
+    address[] _collaterals;    // Accepted collaterals
+}
+
+function update(
+    address coinbase,
+    uint16 tradeFee,
+    address[] memory baseTokens,
+    uint256[] memory terms,
+    address[] memory collaterals
+) public;
+```
+
+Source: `contracts/tomox/contract/LendingRegistration.sol:18`
+
+### Relayer Configuration
+
+Lending relayers must:
+
+1. Be registered as a TomoX relayer first
+2. Configure lending tokens (base tokens)
+3. Set supported loan terms (minimum 60 seconds)
+4. Specify accepted collaterals (or 0x0 for all)
+5. Set trade fee (0-10%)
+
+## Loan Lifecycle
+
+### 1. Order Creation
+
+Users create lending or borrowing orders with:
+
+- Lending token and amount
+- Interest rate (annual percentage)
+- Loan term (duration)
+- Collateral token (for borrowers)
+- Auto top-up preference
+
+### 2. Order Matching
+
+The protocol matches compatible orders:
+
+- Lender's minimum rate ≤ Borrower's maximum rate
+- Same token and term
+- Valid collateral and price
+
+### 3. Loan Active
+
+During the loan period:
+
+- Collateral is locked
+- Borrower has use of borrowed tokens
+- Collateral value is monitored
+- Auto top-up adds collateral if enabled
+
+### 4. Loan Completion
+
+At term end:
+
+- **Repayment**: Borrower repays principal + interest, gets collateral back
+- **Liquidation**: If not repaid, collateral is transferred to lender
+- **Recall**: Lender can recall if collateral ratio drops below recall rate
+
+## Interest Calculation
+
+Interest is specified in basis points (1/100th of a percent):
+
+- **10% APR** = 1000 basis points
+- **0.5% APR** = 50 basis points
+- **25% APR** = 2500 basis points
+
+Interest accrues over the loan term:
+
+```
+Repayment = Principal × (1 + Interest × Term / Year)
+```
+
+## Liquidation Process
+
+Liquidation occurs when:
+
+1. **Collateral Value Drops**: Price falls below liquidation rate
+2. **Loan Expires Unpaid**: Term ends without repayment
+3. **Recall Triggered**: Lender recalls loan at recall rate
+
+Liquidation transfers collateral to the lender.
+
+## API Access
+
+```go
+type PublicTomoXLendingAPI struct {
+    t        *Lending
+    mu       sync.Mutex
+    lastUsed map[string]time.Time
+}
+
+func (api *PublicTomoXLendingAPI) Version(ctx context.Context) string {
+    return ProtocolVersionStr // "1.0"
+}
+```
+
+Source: `tomoxlending/api.go:18`
+
+## Configuration
+
+### Base Tokens (Lending Tokens)
+
+Moderately add lending tokens:
+
+```solidity
+function addBaseToken(address token) public moderatorOnly {
+    bool b = TomoXListing.getTokenStatus(token) || (token == tomoNative);
+    require(b, "Invalid base token");
+    if (!indexOf(BASES, token)) {
+        BASES.push(token);
+    }
+}
+```
+
+Source: `contracts/tomox/contract/LendingRegistration.sol:175`
+
+### Terms (Loan Periods)
+
+Add supported loan terms:
+
+```solidity
+function addTerm(uint256 term) public moderatorOnly {
+    require(term >= 60, "Invalid term");
+    if (!termIndexOf(TERMS, term)) {
+        TERMS.push(term);
+    }
+}
+```
+
+Source: `contracts/tomox/contract/LendingRegistration.sol:184`
+
+Common terms:
+- 7 days: 604800 seconds
+- 30 days: 2592000 seconds
+- 90 days: 7776000 seconds
+
+## Risk Management
+
+### For Lenders
+
+- **Collateral Risk**: Token value may drop rapidly
+- **Liquidation Gap**: Slippage between liquidation and actual price
+- **Oracle Risk**: Price feed delays or manipulation
+- **Term Risk**: Tokens locked for loan duration
+
+### For Borrowers
+
+- **Liquidation Risk**: Must maintain collateral ratio
+- **Interest Cost**: Must generate returns exceeding interest
+- **Price Volatility**: Collateral and borrowed token price swings
+- **Repayment Obligation**: Must repay or lose collateral
+
+## Integration with TomoX DEX
+
+Lending relies on DEX for price discovery:
+
+```go
+// Convert TOMO to token using DEX prices
+func (tomox *TomoX) ConvertTOMOToToken(
+    chain consensus.ChainContext,
+    statedb *state.StateDB,
+    tradingStateDb *tradingstate.TradingStateDB,
+    token common.Address,
+    quantity *big.Int,
+) (*big.Int, *big.Int, error)
+```
+
+Source: `tomox/tomox.go:294`
+
+This integration ensures:
+- Accurate collateral valuation
+- Market-based interest rates
+- Consistent pricing across protocols
+
+<Accordion title="What prevents liquidation cascades?">
+The protocol has several protective mechanisms:
+- Recall rate warnings before liquidation
+- Auto top-up functionality to add collateral automatically
+- Multiple collateral rate thresholds (deposit > liquidation)
+- 2-second block time allows quick responses
+- Oracle price updates before liquidation checks
+</Accordion>
+
+<Accordion title="Can I repay a loan early?">
+Yes, borrowers can repay loans at any time before the term expires. Early repayment:
+- Returns collateral immediately
+- Charges interest only for the period used
+- Has no penalties or prepayment fees
+- Frees up capital for other uses
+</Accordion>
+
+<Accordion title="How are interest rates determined?">
+Interest rates are market-determined through order matching:
+- Lenders specify minimum acceptable rate
+- Borrowers specify maximum willing rate
+- Orders match when rates overlap
+- Competitive market ensures efficient pricing
+- Higher risk (lower collateral ratio) may command higher rates
+</Accordion>
+
+<Accordion title="What happens if the oracle stops updating prices?">
+The protocol requires recent price updates:
+- Each price has a block number timestamp
+- Stale prices prevent new loan creation
+- Existing loans continue but can't be liquidated with stale prices
+- Multiple oracle feeders can be configured for redundancy
+- Token issuers can update ILO collateral prices directly
+</Accordion>
+
+## See Also
+
+- [TomoX DEX](/features/tomox-dex) - Underlying trading protocol
+- [TRC21 Tokens](/features/trc21-tokens) - Gasless token standard
+- [Smart Contracts](/features/smart-contracts) - Contract integration

@@ -1,0 +1,577 @@
+---
+title: Web3 Integration
+description: Integrate Viction blockchain with Web3 libraries and tools
+---
+
+## Overview
+
+Viction is fully compatible with Ethereum's Web3 ecosystem. You can use popular Web3 libraries like Web3.js, ethers.js, and Web3.py to interact with the Viction blockchain.
+
+## Network Configuration
+
+### Mainnet
+
+```javascript
+const VICTION_MAINNET = {
+  chainId: 88,
+  chainName: 'Viction',
+  rpcUrls: ['https://rpc.viction.xyz'],
+  nativeCurrency: {
+    name: 'Viction',
+    symbol: 'VIC',
+    decimals: 18
+  },
+  blockExplorerUrls: ['https://vicscan.xyz']
+};
+```
+
+### Testnet
+
+```javascript
+const VICTION_TESTNET = {
+  chainId: 89,
+  chainName: 'Viction Testnet',
+  rpcUrls: ['https://rpc-testnet.viction.xyz'],
+  nativeCurrency: {
+    name: 'Viction',
+    symbol: 'VIC',
+    decimals: 18
+  },
+  blockExplorerUrls: ['https://testnet.vicscan.xyz']
+};
+```
+
+## Web3.js Integration
+
+### Installation
+
+```bash
+npm install web3
+```
+
+### Basic Setup
+
+```javascript
+const Web3 = require('web3');
+
+// HTTP Provider
+const web3 = new Web3('https://rpc.viction.xyz');
+
+// WebSocket Provider (for subscriptions)
+const web3ws = new Web3('wss://ws.viction.xyz');
+
+// Local node
+const web3local = new Web3('http://localhost:8545');
+```
+
+### Common Operations
+
+#### Get Account Balance
+
+```javascript
+async function getBalance(address) {
+  const balance = await web3.eth.getBalance(address);
+  console.log('Balance:', web3.utils.fromWei(balance, 'ether'), 'VIC');
+}
+
+getBalance('0x...');
+```
+
+#### Send Transaction
+
+```javascript
+async function sendTransaction() {
+  const account = web3.eth.accounts.privateKeyToAccount('0x...');
+  web3.eth.accounts.wallet.add(account);
+  
+  const tx = {
+    from: account.address,
+    to: '0x...',
+    value: web3.utils.toWei('1', 'ether'),
+    gas: 21000,
+    gasPrice: await web3.eth.getGasPrice()
+  };
+  
+  const receipt = await web3.eth.sendTransaction(tx);
+  console.log('Transaction hash:', receipt.transactionHash);
+}
+```
+
+#### Interact with Smart Contract
+
+```javascript
+const contractABI = [...];
+const contractAddress = '0x...';
+
+const contract = new web3.eth.Contract(contractABI, contractAddress);
+
+// Read contract data
+async function readContract() {
+  const result = await contract.methods.getValue().call();
+  console.log('Value:', result);
+}
+
+// Write to contract
+async function writeContract() {
+  const account = web3.eth.accounts.privateKeyToAccount('0x...');
+  web3.eth.accounts.wallet.add(account);
+  
+  const tx = contract.methods.setValue(123);
+  const gas = await tx.estimateGas({ from: account.address });
+  
+  const receipt = await tx.send({
+    from: account.address,
+    gas: gas
+  });
+  
+  console.log('Transaction:', receipt.transactionHash);
+}
+```
+
+#### Subscribe to Events
+
+```javascript
+// Subscribe to new blocks
+web3ws.eth.subscribe('newBlockHeaders', (error, blockHeader) => {
+  if (!error) {
+    console.log('New block #', blockHeader.number);
+  }
+});
+
+// Subscribe to contract events
+const subscription = contract.events.Transfer({
+  filter: { from: '0x...' },
+  fromBlock: 'latest'
+}, (error, event) => {
+  if (!error) {
+    console.log('Transfer event:', event.returnValues);
+  }
+});
+```
+
+## Ethers.js Integration
+
+### Installation
+
+```bash
+npm install ethers
+```
+
+### Basic Setup
+
+```javascript
+const { ethers } = require('ethers');
+
+// Connect to Viction
+const provider = new ethers.JsonRpcProvider('https://rpc.viction.xyz');
+
+// WebSocket provider
+const wsProvider = new ethers.WebSocketProvider('wss://ws.viction.xyz');
+
+// With custom network
+const customProvider = new ethers.JsonRpcProvider('https://rpc.viction.xyz', {
+  chainId: 88,
+  name: 'viction'
+});
+```
+
+### Common Operations
+
+#### Get Account Balance
+
+```javascript
+async function getBalance(address) {
+  const balance = await provider.getBalance(address);
+  console.log('Balance:', ethers.formatEther(balance), 'VIC');
+}
+```
+
+#### Create Wallet and Send Transaction
+
+```javascript
+async function sendTransaction() {
+  const wallet = new ethers.Wallet('0x...', provider);
+  
+  const tx = {
+    to: '0x...',
+    value: ethers.parseEther('1.0')
+  };
+  
+  const transaction = await wallet.sendTransaction(tx);
+  console.log('Transaction hash:', transaction.hash);
+  
+  const receipt = await transaction.wait();
+  console.log('Confirmed in block:', receipt.blockNumber);
+}
+```
+
+#### Interact with Smart Contract
+
+```javascript
+const contractABI = [...];
+const contractAddress = '0x...';
+
+const contract = new ethers.Contract(contractAddress, contractABI, provider);
+
+// Read contract
+async function readContract() {
+  const value = await contract.getValue();
+  console.log('Value:', value.toString());
+}
+
+// Write to contract
+async function writeContract() {
+  const wallet = new ethers.Wallet('0x...', provider);
+  const contractWithSigner = contract.connect(wallet);
+  
+  const tx = await contractWithSigner.setValue(123);
+  await tx.wait();
+  console.log('Transaction confirmed:', tx.hash);
+}
+```
+
+#### Listen to Events
+
+```javascript
+// Listen to contract events
+contract.on('Transfer', (from, to, amount, event) => {
+  console.log(`Transfer: ${from} -> ${to}, Amount: ${amount.toString()}`);
+});
+
+// Listen to new blocks
+provider.on('block', (blockNumber) => {
+  console.log('New block:', blockNumber);
+});
+```
+
+## Go Client Integration
+
+### Using ethclient Package
+
+```go
+import (
+    "context"
+    "fmt"
+    "math/big"
+    
+    "github.com/tomochain/tomochain/ethclient"
+    "github.com/tomochain/tomochain/common"
+)
+
+func main() {
+    // Connect to Viction node
+    client, err := ethclient.Dial("https://rpc.viction.xyz")
+    if err != nil {
+        panic(err)
+    }
+    
+    // Get latest block number
+    blockNumber, err := client.BlockNumber(context.Background())
+    if err != nil {
+        panic(err)
+    }
+    fmt.Println("Latest block:", blockNumber)
+    
+    // Get balance
+    address := common.HexToAddress("0x...")
+    balance, err := client.BalanceAt(context.Background(), address, nil)
+    if err != nil {
+        panic(err)
+    }
+    fmt.Println("Balance:", balance)
+}
+```
+
+### Send Transaction
+
+```go
+import (
+    "github.com/tomochain/tomochain/core/types"
+    "github.com/tomochain/tomochain/crypto"
+)
+
+func sendTransaction(client *ethclient.Client) error {
+    privateKey, err := crypto.HexToECDSA("...")
+    if err != nil {
+        return err
+    }
+    
+    fromAddress := crypto.PubkeyToAddress(privateKey.PublicKey)
+    nonce, err := client.PendingNonceAt(context.Background(), fromAddress)
+    if err != nil {
+        return err
+    }
+    
+    toAddress := common.HexToAddress("0x...")
+    value := big.NewInt(1000000000000000000) // 1 VIC
+    gasLimit := uint64(21000)
+    gasPrice, err := client.SuggestGasPrice(context.Background())
+    if err != nil {
+        return err
+    }
+    
+    tx := types.NewTransaction(nonce, toAddress, value, gasLimit, gasPrice, nil)
+    
+    chainID, err := client.NetworkID(context.Background())
+    if err != nil {
+        return err
+    }
+    
+    signedTx, err := types.SignTx(tx, types.NewEIP155Signer(chainID), privateKey)
+    if err != nil {
+        return err
+    }
+    
+    err = client.SendTransaction(context.Background(), signedTx)
+    if err != nil {
+        return err
+    }
+    
+    fmt.Println("Transaction hash:", signedTx.Hash().Hex())
+    return nil
+}
+```
+
+## Python Web3.py Integration
+
+### Installation
+
+```bash
+pip install web3
+```
+
+### Basic Setup
+
+```python
+from web3 import Web3
+
+# Connect to Viction
+w3 = Web3(Web3.HTTPProvider('https://rpc.viction.xyz'))
+
+# Check connection
+if w3.is_connected():
+    print('Connected to Viction')
+    print('Chain ID:', w3.eth.chain_id)
+```
+
+### Common Operations
+
+```python
+# Get balance
+address = '0x...'
+balance = w3.eth.get_balance(address)
+print(f'Balance: {w3.from_wei(balance, "ether")} VIC')
+
+# Send transaction
+account = w3.eth.account.from_key('0x...')
+tx = {
+    'from': account.address,
+    'to': '0x...',
+    'value': w3.to_wei(1, 'ether'),
+    'gas': 21000,
+    'gasPrice': w3.eth.gas_price,
+    'nonce': w3.eth.get_transaction_count(account.address),
+    'chainId': 88
+}
+
+signed_tx = w3.eth.account.sign_transaction(tx, account.key)
+tx_hash = w3.eth.send_raw_transaction(signed_tx.rawTransaction)
+print(f'Transaction hash: {tx_hash.hex()}')
+
+# Wait for receipt
+receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+print(f'Transaction confirmed in block {receipt.blockNumber}')
+```
+
+## MetaMask Integration
+
+### Add Viction Network to MetaMask
+
+```javascript
+async function addVictionNetwork() {
+  try {
+    await window.ethereum.request({
+      method: 'wallet_addEthereumChain',
+      params: [{
+        chainId: '0x58', // 88 in hex
+        chainName: 'Viction',
+        nativeCurrency: {
+          name: 'Viction',
+          symbol: 'VIC',
+          decimals: 18
+        },
+        rpcUrls: ['https://rpc.viction.xyz'],
+        blockExplorerUrls: ['https://vicscan.xyz']
+      }]
+    });
+  } catch (error) {
+    console.error('Error adding network:', error);
+  }
+}
+```
+
+### Connect Wallet
+
+```javascript
+async function connectWallet() {
+  if (typeof window.ethereum !== 'undefined') {
+    const accounts = await window.ethereum.request({ 
+      method: 'eth_requestAccounts' 
+    });
+    console.log('Connected account:', accounts[0]);
+    return accounts[0];
+  } else {
+    alert('Please install MetaMask!');
+  }
+}
+```
+
+### Send Transaction with MetaMask
+
+```javascript
+async function sendTransactionWithMetaMask() {
+  const accounts = await connectWallet();
+  
+  const transactionParameters = {
+    from: accounts[0],
+    to: '0x...',
+    value: '0x' + (1e18).toString(16), // 1 VIC in wei
+    gas: '0x5208', // 21000 in hex
+  };
+  
+  try {
+    const txHash = await window.ethereum.request({
+      method: 'eth_sendTransaction',
+      params: [transactionParameters],
+    });
+    console.log('Transaction hash:', txHash);
+  } catch (error) {
+    console.error('Transaction failed:', error);
+  }
+}
+```
+
+## Best Practices
+
+### Error Handling
+
+```javascript
+async function robustTransaction() {
+  try {
+    const tx = await web3.eth.sendTransaction({
+      from: '0x...',
+      to: '0x...',
+      value: web3.utils.toWei('1', 'ether')
+    });
+    return tx;
+  } catch (error) {
+    if (error.code === 4001) {
+      console.log('User rejected transaction');
+    } else if (error.message.includes('insufficient funds')) {
+      console.log('Insufficient balance');
+    } else {
+      console.error('Transaction error:', error);
+    }
+    throw error;
+  }
+}
+```
+
+### Gas Estimation
+
+```javascript
+async function estimateGas() {
+  const tx = {
+    from: '0x...',
+    to: '0x...',
+    value: web3.utils.toWei('1', 'ether')
+  };
+  
+  const estimatedGas = await web3.eth.estimateGas(tx);
+  const gasPrice = await web3.eth.getGasPrice();
+  
+  // Add 20% buffer
+  const gasLimit = Math.floor(estimatedGas * 1.2);
+  
+  console.log('Estimated gas:', estimatedGas);
+  console.log('Gas price:', web3.utils.fromWei(gasPrice, 'gwei'), 'Gwei');
+  console.log('Recommended gas limit:', gasLimit);
+}
+```
+
+### Connection Management
+
+```javascript
+class VictionConnection {
+  constructor(rpcUrl) {
+    this.web3 = new Web3(rpcUrl);
+  }
+  
+  async ensureConnection() {
+    try {
+      await this.web3.eth.getBlockNumber();
+      return true;
+    } catch (error) {
+      console.error('Connection failed:', error);
+      return false;
+    }
+  }
+  
+  async reconnect(newRpcUrl) {
+    this.web3.setProvider(new Web3.providers.HttpProvider(newRpcUrl));
+    return this.ensureConnection();
+  }
+}
+```
+
+## Development Tools
+
+### Hardhat Configuration
+
+```javascript
+// hardhat.config.js
+module.exports = {
+  networks: {
+    viction: {
+      url: 'https://rpc.viction.xyz',
+      chainId: 88,
+      accounts: [process.env.PRIVATE_KEY]
+    },
+    victionTestnet: {
+      url: 'https://rpc-testnet.viction.xyz',
+      chainId: 89,
+      accounts: [process.env.PRIVATE_KEY]
+    }
+  },
+  solidity: '0.8.19'
+};
+```
+
+### Truffle Configuration
+
+```javascript
+// truffle-config.js
+module.exports = {
+  networks: {
+    viction: {
+      provider: () => new HDWalletProvider(
+        process.env.MNEMONIC,
+        'https://rpc.viction.xyz'
+      ),
+      network_id: 88,
+      gas: 8000000
+    }
+  },
+  compilers: {
+    solc: {
+      version: '0.8.19'
+    }
+  }
+};
+```
+
+## Next Steps
+
+- [Testing and Development Practices](/development/testing)
+- [Smart Contract Development](/features/smart-contracts)
+- [RPC API Reference](/development/rpc-api)

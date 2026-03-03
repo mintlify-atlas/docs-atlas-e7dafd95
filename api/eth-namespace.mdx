@@ -1,0 +1,445 @@
+---
+title: "eth Namespace"
+description: "Ethereum-compatible RPC methods for blockchain interaction"
+---
+
+## Overview
+
+The `eth` namespace provides Ethereum-compatible methods for querying blockchain data, managing accounts, and submitting transactions.
+
+## Blockchain Queries
+
+### eth_blockNumber
+
+Returns the number of the most recent block.
+
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' \
+  https://rpc.viction.xyz
+```
+
+<ResponseField name="result" type="string">
+  The current block number as a hexadecimal string
+</ResponseField>
+
+**Example Response:**
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": "0x4b7"
+}
+```
+
+---
+
+### eth_getBlockByNumber
+
+Returns information about a block by block number.
+
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  --data '{"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["0x4b7",true],"id":1}' \
+  https://rpc.viction.xyz
+```
+
+<ParamField path="params[0]" type="string" required>
+  Block number (hex) or "latest", "earliest", "pending"
+</ParamField>
+
+<ParamField path="params[1]" type="boolean" required>
+  If true, returns full transaction objects; if false, returns only transaction hashes
+</ParamField>
+
+<ResponseField name="result" type="object">
+  Block object or null if block not found
+  <Expandable title="properties">
+    <ResponseField name="number" type="string">
+      Block number (hex)
+    </ResponseField>
+    <ResponseField name="hash" type="string">
+      Block hash
+    </ResponseField>
+    <ResponseField name="parentHash" type="string">
+      Hash of parent block
+    </ResponseField>
+    <ResponseField name="miner" type="string">
+      Address of block creator
+    </ResponseField>
+    <ResponseField name="timestamp" type="string">
+      Unix timestamp (hex)
+    </ResponseField>
+    <ResponseField name="gasLimit" type="string">
+      Gas limit (hex)
+    </ResponseField>
+    <ResponseField name="gasUsed" type="string">
+      Gas used (hex)
+    </ResponseField>
+    <ResponseField name="transactions" type="array">
+      Array of transaction objects or hashes
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+---
+
+### eth_getBlockByHash
+
+Returns information about a block by block hash.
+
+<ParamField path="params[0]" type="string" required>
+  32-byte block hash
+</ParamField>
+
+<ParamField path="params[1]" type="boolean" required>
+  If true, returns full transaction objects; if false, returns only transaction hashes
+</ParamField>
+
+---
+
+### eth_getBalance
+
+Returns the balance of an account at a given block.
+
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  --data '{"jsonrpc":"2.0","method":"eth_getBalance","params":["0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb","latest"],"id":1}' \
+  https://rpc.viction.xyz
+```
+
+<ParamField path="params[0]" type="string" required>
+  20-byte account address
+</ParamField>
+
+<ParamField path="params[1]" type="string" required>
+  Block number (hex) or "latest", "earliest", "pending"
+</ParamField>
+
+<ResponseField name="result" type="string">
+  Balance in wei (hex)
+</ResponseField>
+
+---
+
+### eth_getStorageAt
+
+Returns the value from a storage position at a given address.
+
+<ParamField path="params[0]" type="string" required>
+  20-byte account address
+</ParamField>
+
+<ParamField path="params[1]" type="string" required>
+  Storage position (hex)
+</ParamField>
+
+<ParamField path="params[2]" type="string" required>
+  Block number (hex) or "latest", "earliest", "pending"
+</ParamField>
+
+---
+
+### eth_getCode
+
+Returns code at a given address.
+
+<ParamField path="params[0]" type="string" required>
+  20-byte account address
+</ParamField>
+
+<ParamField path="params[1]" type="string" required>
+  Block number (hex) or "latest", "earliest", "pending"
+</ParamField>
+
+<ResponseField name="result" type="string">
+  Contract bytecode (hex) or "0x" if account has no code
+</ResponseField>
+
+---
+
+## Transactions
+
+### eth_getTransactionCount
+
+Returns the number of transactions sent from an address (nonce).
+
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  --data '{"jsonrpc":"2.0","method":"eth_getTransactionCount","params":["0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb","latest"],"id":1}' \
+  https://rpc.viction.xyz
+```
+
+<ParamField path="params[0]" type="string" required>
+  20-byte account address
+</ParamField>
+
+<ParamField path="params[1]" type="string" required>
+  Block number (hex) or "latest", "earliest", "pending"
+</ParamField>
+
+<ResponseField name="result" type="string">
+  Transaction count (hex)
+</ResponseField>
+
+---
+
+### eth_getTransactionByHash
+
+Returns information about a transaction by transaction hash.
+
+<ParamField path="params[0]" type="string" required>
+  32-byte transaction hash
+</ParamField>
+
+<ResponseField name="result" type="object">
+  Transaction object or null if not found
+  <Expandable title="properties">
+    <ResponseField name="hash" type="string">
+      Transaction hash
+    </ResponseField>
+    <ResponseField name="from" type="string">
+      Sender address
+    </ResponseField>
+    <ResponseField name="to" type="string">
+      Recipient address (null for contract creation)
+    </ResponseField>
+    <ResponseField name="value" type="string">
+      Value transferred in wei (hex)
+    </ResponseField>
+    <ResponseField name="gas" type="string">
+      Gas provided (hex)
+    </ResponseField>
+    <ResponseField name="gasPrice" type="string">
+      Gas price in wei (hex)
+    </ResponseField>
+    <ResponseField name="nonce" type="string">
+      Transaction nonce (hex)
+    </ResponseField>
+    <ResponseField name="input" type="string">
+      Transaction data (hex)
+    </ResponseField>
+    <ResponseField name="blockHash" type="string">
+      Block hash (null if pending)
+    </ResponseField>
+    <ResponseField name="blockNumber" type="string">
+      Block number (hex, null if pending)
+    </ResponseField>
+    <ResponseField name="transactionIndex" type="string">
+      Transaction index in block (hex, null if pending)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+---
+
+### eth_getTransactionReceipt
+
+Returns the receipt of a transaction by transaction hash.
+
+<ParamField path="params[0]" type="string" required>
+  32-byte transaction hash
+</ParamField>
+
+<ResponseField name="result" type="object">
+  Receipt object or null if not found
+  <Expandable title="properties">
+    <ResponseField name="transactionHash" type="string">
+      Transaction hash
+    </ResponseField>
+    <ResponseField name="blockHash" type="string">
+      Block hash
+    </ResponseField>
+    <ResponseField name="blockNumber" type="string">
+      Block number (hex)
+    </ResponseField>
+    <ResponseField name="from" type="string">
+      Sender address
+    </ResponseField>
+    <ResponseField name="to" type="string">
+      Recipient address
+    </ResponseField>
+    <ResponseField name="gasUsed" type="string">
+      Gas used (hex)
+    </ResponseField>
+    <ResponseField name="cumulativeGasUsed" type="string">
+      Cumulative gas used (hex)
+    </ResponseField>
+    <ResponseField name="contractAddress" type="string">
+      Contract address created (null if not a contract creation)
+    </ResponseField>
+    <ResponseField name="logs" type="array">
+      Array of log objects
+    </ResponseField>
+    <ResponseField name="status" type="string">
+      1 (success) or 0 (failure) (hex)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+---
+
+### eth_sendRawTransaction
+
+Submits a signed transaction to the network.
+
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  --data '{"jsonrpc":"2.0","method":"eth_sendRawTransaction","params":["0xf86c..."],"id":1}' \
+  https://rpc.viction.xyz
+```
+
+<ParamField path="params[0]" type="string" required>
+  Signed transaction data (hex)
+</ParamField>
+
+<ResponseField name="result" type="string">
+  32-byte transaction hash
+</ResponseField>
+
+---
+
+## Call and Estimation
+
+### eth_call
+
+Executes a new message call immediately without creating a transaction.
+
+<ParamField path="params[0]" type="object" required>
+  Transaction call object
+  <Expandable title="properties">
+    <ParamField path="from" type="string">
+      Sender address (optional)
+    </ParamField>
+    <ParamField path="to" type="string" required>
+      Recipient address
+    </ParamField>
+    <ParamField path="gas" type="string">
+      Gas provided (optional)
+    </ParamField>
+    <ParamField path="gasPrice" type="string">
+      Gas price (optional)
+    </ParamField>
+    <ParamField path="value" type="string">
+      Value to transfer (optional)
+    </ParamField>
+    <ParamField path="data" type="string">
+      Transaction data (optional)
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="params[1]" type="string" required>
+  Block number (hex) or "latest", "earliest", "pending"
+</ParamField>
+
+<ResponseField name="result" type="string">
+  Return value of executed contract (hex)
+</ResponseField>
+
+---
+
+### eth_estimateGas
+
+Generates and returns an estimate of gas needed to complete the transaction.
+
+<ParamField path="params[0]" type="object" required>
+  Transaction call object (same as eth_call)
+</ParamField>
+
+<ResponseField name="result" type="string">
+  Estimated gas amount (hex)
+</ResponseField>
+
+---
+
+## Network and Protocol
+
+### eth_chainId
+
+Returns the chain ID of the network.
+
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  --data '{"jsonrpc":"2.0","method":"eth_chainId","params":[],"id":1}' \
+  https://rpc.viction.xyz
+```
+
+<ResponseField name="result" type="string">
+  Chain ID (hex): "0x58" for mainnet, "0x59" for testnet
+</ResponseField>
+
+---
+
+### eth_syncing
+
+Returns an object with sync status data or false.
+
+<ResponseField name="result" type="object|boolean">
+  Sync status object or false if not syncing
+  <Expandable title="properties (if syncing)">
+    <ResponseField name="startingBlock" type="string">
+      Block at which sync started (hex)
+    </ResponseField>
+    <ResponseField name="currentBlock" type="string">
+      Current block number (hex)
+    </ResponseField>
+    <ResponseField name="highestBlock" type="string">
+      Estimated highest block (hex)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+---
+
+### eth_gasPrice
+
+Returns the current gas price in wei.
+
+<ResponseField name="result" type="string">
+  Gas price in wei (hex)
+</ResponseField>
+
+---
+
+### eth_protocolVersion
+
+Returns the current Ethereum protocol version.
+
+<ResponseField name="result" type="string">
+  Protocol version (hex)
+</ResponseField>
+
+---
+
+## Viction-Specific Methods
+
+### eth_getOwnerByCoinbase
+
+Returns the masternode owner address for a given coinbase address.
+
+<ParamField path="params[0]" type="string" required>
+  Coinbase address
+</ParamField>
+
+<ParamField path="params[1]" type="string" required>
+  Block number (hex) or "latest"
+</ParamField>
+
+<ResponseField name="result" type="string">
+  Owner address
+</ResponseField>
+
+---
+
+### eth_getRewardByHash
+
+Returns the reward information for a block by hash.
+
+<ParamField path="params[0]" type="string" required>
+  Block hash
+</ParamField>
+
+<ResponseField name="result" type="object">
+  Reward details organized by type and recipient
+</ResponseField>

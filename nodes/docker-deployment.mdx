@@ -1,0 +1,651 @@
+---
+title: Docker Deployment
+description: Deploy Viction nodes using Docker containers for simplified setup and management
+---
+
+Docker provides an easy way to deploy and manage Viction nodes without dealing with complex dependency management. This guide covers both building and running Viction nodes in Docker containers.
+
+## Quick Start
+
+The fastest way to get started is using the official pre-built Docker image:
+
+```bash
+docker run -d --name viction \
+  -v "$(pwd)/data:/tomochain/data" \
+  -v "$(pwd)/keystore:/tomochain/keystore" \
+  -v "$(pwd)/password:/tomochain/password" \
+  -p 8545:8545 \
+  -p 8546:8546 \
+  -p 30303:30303 \
+  -e IDENTITY=my-node \
+  -e NETWORK_ID=88 \
+  buildonviction/node:v2.5.1
+```
+
+## Building the Docker Image
+
+To build the Viction node Docker image from source:
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/BuildOnViction/victionchain.git
+    cd victionchain
+    ```
+  </Step>
+
+  <Step title="Build the image">
+    ```bash
+    docker build --file Dockerfile.node -t "buildonviction/node:v2.5.1" .
+    ```
+
+    This builds a multi-stage Docker image that:
+    1. Compiles the `tomo` binary using Go 1.18
+    2. Creates a minimal Alpine-based runtime image
+    3. Includes the entrypoint script and genesis files
+  </Step>
+
+  <Step title="Verify the build">
+    ```bash
+    docker images | grep buildonviction
+    ```
+
+    You should see your newly built image listed.
+  </Step>
+</Steps>
+
+## Environment Variables
+
+The Docker container is configured using environment variables. Here's the complete reference:
+
+### Network Configuration
+
+<ResponseField name="NETWORK_ID" type="string" default="88">
+  Network identifier:
+  - `88`: Viction Mainnet
+  - `89`: Viction Testnet
+
+  ```bash
+  -e NETWORK_ID=88
+  ```
+</ResponseField>
+
+<ResponseField name="IDENTITY" type="string" default="unnamed_xxxxxx">
+  Your node's name. If not set, a random name is generated.
+
+  ```bash
+  -e IDENTITY="my-viction-node"
+  ```
+</ResponseField>
+
+<ResponseField name="BOOTNODES" type="string">
+  Comma-separated list of enode URLs for bootstrap. Uses default bootnodes if not set.
+
+  ```bash
+  -e BOOTNODES="enode://abc@1.2.3.4:30303,enode://def@5.6.7.8:30303"
+  ```
+</ResponseField>
+
+<ResponseField name="EXTIP" type="string">
+  Your external IP address. Only use if you have trouble connecting to peers.
+
+  ```bash
+  -e EXTIP="203.0.113.1"
+  ```
+</ResponseField>
+
+<ResponseField name="P2P_PORT" type="string" default="30303">
+  P2P port for peer connections. Must map host port to the same value.
+
+  ```bash
+  -e P2P_PORT=30303
+  -p 30303:30303
+  ```
+</ResponseField>
+
+<ResponseField name="MAX_PEERS" type="string" default="25">
+  Maximum number of peers. Set to 0 to disable P2P.
+
+  ```bash
+  -e MAX_PEERS=25
+  ```
+</ResponseField>
+
+### Sync and Performance
+
+<ResponseField name="SYNC_MODE" type="string" default="full">
+  Blockchain sync mode:
+  - `fast`: Fast synchronization
+  - `full`: Full synchronization
+  - `light`: Light client mode
+
+  ```bash
+  -e SYNC_MODE=full
+  ```
+</ResponseField>
+
+<ResponseField name="TXPOOL_GLSLOTS" type="string" default="3072">
+  Maximum number of executable transaction slots for all accounts.
+
+  ```bash
+  -e TXPOOL_GLSLOTS=3072
+  ```
+</ResponseField>
+
+<ResponseField name="TXPOOL_GLQUEUE" type="string" default="768">
+  Maximum number of non-executable transaction slots for all accounts.
+
+  ```bash
+  -e TXPOOL_GLQUEUE=768
+  ```
+</ResponseField>
+
+### Account Management
+
+<ResponseField name="PRIVATE_KEY" type="string">
+  Private key in plain text to import into keystore. Use this OR provide keystore files, not both.
+
+  ```bash
+  -e PRIVATE_KEY="0x1234567890abcdef..."
+  ```
+
+  <Warning>
+    Passing private keys via environment variables is convenient but less secure. For production, use mounted keystore files.
+  </Warning>
+</ResponseField>
+
+<ResponseField name="PASSWORD" type="string">
+  Password for encrypting/decrypting account. Can also mount password file to `/tomochain/password`.
+
+  ```bash
+  -e PASSWORD="your-secure-password"
+  ```
+</ResponseField>
+
+### Network Stats
+
+<ResponseField name="NETSTATS_HOST" type="string" default="netstats-server">
+  Hostname of ethstats service.
+
+  ```bash
+  -e NETSTATS_HOST=stats.viction.xyz
+  ```
+</ResponseField>
+
+<ResponseField name="NETSTATS_PORT" type="string" default="3000">
+  Port of ethstats service.
+
+  ```bash
+  -e NETSTATS_PORT=443
+  ```
+</ResponseField>
+
+<ResponseField name="WS_SECRET" type="string">
+  Secret for ethstats service. If not set, node won't report to netstats.
+
+  ```bash
+  -e WS_SECRET="getty-site-pablo-auger-room-sos-blair-shin-whiz-delhi"
+  ```
+</ResponseField>
+
+### Advanced Options
+
+<ResponseField name="DEBUG_MODE" type="string">
+  Enable archive mode and debug APIs. Set to any non-empty value to enable.
+
+  ```bash
+  -e DEBUG_MODE=1
+  ```
+
+  Enables:
+  - `--gcmode archive`
+  - `--rpcapi db,eth,net,web3,debug,posv`
+</ResponseField>
+
+<ResponseField name="STORE_REWARD" type="string">
+  Enable reward snapshots for each epoch. Requires DEBUG_MODE or archive mode.
+
+  ```bash
+  -e STORE_REWARD=1
+  ```
+</ResponseField>
+
+<ResponseField name="ANNOUNCE_TXS" type="string">
+  Always commit transactions. Set to any non-empty value to enable.
+
+  ```bash
+  -e ANNOUNCE_TXS=1
+  ```
+</ResponseField>
+
+<ResponseField name="VERBOSITY" type="number" default="3">
+  Logging verbosity (1-5).
+
+  ```bash
+  -e VERBOSITY=3
+  ```
+</ResponseField>
+
+<ResponseField name="RPC_TIMEOUT" type="number">
+  Timeout for RPC HTTP handlers in seconds.
+
+  ```bash
+  -e RPC_TIMEOUT=120
+  ```
+</ResponseField>
+
+## Volume Mounts
+
+The Docker container expects several mounted volumes:
+
+<CardGroup cols={3}>
+  <Card title="Data Directory" icon="database">
+    Mount point: `/tomochain/data`
+    
+    Stores blockchain data and state.
+    
+    ```bash
+    -v "$(pwd)/data:/tomochain/data"
+    ```
+  </Card>
+
+  <Card title="Keystore" icon="key">
+    Mount point: `/tomochain/keystore`
+    
+    Stores encrypted account keys.
+    
+    ```bash
+    -v "$(pwd)/keystore:/tomochain/keystore"
+    ```
+  </Card>
+
+  <Card title="Password File" icon="lock">
+    Mount point: `/tomochain/password`
+    
+    Contains account password.
+    
+    ```bash
+    -v "$(pwd)/password:/tomochain/password"
+    ```
+  </Card>
+</CardGroup>
+
+## Exposed Ports
+
+The Docker image exposes three ports:
+
+<ResponseField name="8545" type="port">
+  HTTP-RPC endpoint for JSON-RPC API calls
+  
+  ```bash
+  -p 8545:8545
+  ```
+</ResponseField>
+
+<ResponseField name="8546" type="port">
+  WebSocket-RPC endpoint for WebSocket connections
+  
+  ```bash
+  -p 8546:8546
+  ```
+</ResponseField>
+
+<ResponseField name="30303" type="port">
+  P2P port for peer-to-peer communication (TCP and UDP)
+  
+  ```bash
+  -p 30303:30303 -p 30303:30303/udp
+  ```
+</ResponseField>
+
+## Deployment Examples
+
+<Tabs>
+  <Tab title="Full Node (Mainnet)">
+    ```bash
+    docker run -d --name viction-node \
+      --restart unless-stopped \
+      -v "$(pwd)/data:/tomochain/data" \
+      -v "$(pwd)/keystore:/tomochain/keystore" \
+      -v "$(pwd)/password:/tomochain/password" \
+      -p 8545:8545 \
+      -p 8546:8546 \
+      -p 30303:30303 \
+      -p 30303:30303/udp \
+      -e IDENTITY=my-fullnode \
+      -e NETWORK_ID=88 \
+      -e SYNC_MODE=full \
+      -e NETSTATS_HOST=stats.viction.xyz \
+      -e NETSTATS_PORT=443 \
+      -e WS_SECRET=getty-site-pablo-auger-room-sos-blair-shin-whiz-delhi \
+      -e VERBOSITY=3 \
+      buildonviction/node:v2.5.1
+    ```
+  </Tab>
+
+  <Tab title="Masternode">
+    ```bash
+    docker run -d --name viction-masternode \
+      --restart unless-stopped \
+      -v "$(pwd)/data:/tomochain/data" \
+      -v "$(pwd)/keystore:/tomochain/keystore" \
+      -v "$(pwd)/password:/tomochain/password" \
+      -p 8545:8545 \
+      -p 8546:8546 \
+      -p 30303:30303 \
+      -p 30303:30303/udp \
+      -e IDENTITY=my-masternode \
+      -e NETWORK_ID=88 \
+      -e SYNC_MODE=full \
+      -e MAX_PEERS=50 \
+      -e NETSTATS_HOST=stats.viction.xyz \
+      -e NETSTATS_PORT=443 \
+      -e WS_SECRET=getty-site-pablo-auger-room-sos-blair-shin-whiz-delhi \
+      -e VERBOSITY=3 \
+      buildonviction/node:v2.5.1
+    ```
+
+    <Note>
+      The entrypoint script automatically detects if your account is a registered masternode and enables mining.
+    </Note>
+  </Tab>
+
+  <Tab title="Archive Node">
+    ```bash
+    docker run -d --name viction-archive \
+      --restart unless-stopped \
+      -v "$(pwd)/data:/tomochain/data" \
+      -v "$(pwd)/keystore:/tomochain/keystore" \
+      -v "$(pwd)/password:/tomochain/password" \
+      -p 8545:8545 \
+      -p 8546:8546 \
+      -p 30303:30303 \
+      -p 30303:30303/udp \
+      -e IDENTITY=my-archive \
+      -e NETWORK_ID=88 \
+      -e SYNC_MODE=full \
+      -e DEBUG_MODE=1 \
+      -e STORE_REWARD=1 \
+      -e VERBOSITY=3 \
+      buildonviction/node:v2.5.1
+    ```
+
+    <Warning>
+      Archive nodes require significantly more disk space. Ensure you have at least 1TB available.
+    </Warning>
+  </Tab>
+
+  <Tab title="Testnet">
+    ```bash
+    docker run -d --name viction-testnet \
+      --restart unless-stopped \
+      -v "$(pwd)/data:/tomochain/data" \
+      -v "$(pwd)/keystore:/tomochain/keystore" \
+      -v "$(pwd)/password:/tomochain/password" \
+      -p 8545:8545 \
+      -p 8546:8546 \
+      -p 30303:30303 \
+      -p 30303:30303/udp \
+      -e IDENTITY=my-testnet-node \
+      -e NETWORK_ID=89 \
+      -e SYNC_MODE=full \
+      -e VERBOSITY=3 \
+      buildonviction/node:v2.5.1
+    ```
+  </Tab>
+</Tabs>
+
+## Docker Compose
+
+For easier management, use Docker Compose:
+
+```yaml docker-compose.yml
+version: '3.8'
+
+services:
+  viction-node:
+    image: buildonviction/node:v2.5.1
+    container_name: viction-node
+    restart: unless-stopped
+    ports:
+      - "8545:8545"
+      - "8546:8546"
+      - "30303:30303"
+      - "30303:30303/udp"
+    volumes:
+      - ./data:/tomochain/data
+      - ./keystore:/tomochain/keystore
+      - ./password:/tomochain/password
+    environment:
+      - IDENTITY=my-viction-node
+      - NETWORK_ID=88
+      - SYNC_MODE=full
+      - MAX_PEERS=25
+      - NETSTATS_HOST=stats.viction.xyz
+      - NETSTATS_PORT=443
+      - WS_SECRET=getty-site-pablo-auger-room-sos-blair-shin-whiz-delhi
+      - VERBOSITY=3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "10"
+```
+
+Start the node:
+
+```bash
+docker-compose up -d
+```
+
+View logs:
+
+```bash
+docker-compose logs -f
+```
+
+Stop the node:
+
+```bash
+docker-compose down
+```
+
+## Entrypoint Script Details
+
+The Docker image uses an entrypoint script (`docker/tomochain/entrypoint.sh`) that:
+
+<Steps>
+  <Step title="Processes environment variables">
+    Converts environment variables to command-line flags and handles file-based configuration.
+  </Step>
+
+  <Step title="Initializes blockchain">
+    If no blockchain data exists, initializes with the appropriate genesis block (mainnet or testnet).
+  </Step>
+
+  <Step title="Manages accounts">
+    - Imports private key if `PRIVATE_KEY` is set
+    - Creates password file if needed
+    - Unlocks the first available account
+  </Step>
+
+  <Step title="Configures networking">
+    Sets up bootnodes, NAT, and ethstats based on environment variables.
+  </Step>
+
+  <Step title="Starts the node">
+    Launches `tomo` with all configured parameters:
+    - RPC enabled on 0.0.0.0:8545
+    - WebSocket enabled on 0.0.0.0:8546
+    - P2P on configured port
+    - CORS and virtual hosts set to "*" for development
+  </Step>
+</Steps>
+
+## Container Management
+
+### View Logs
+
+```bash
+docker logs -f viction-node
+```
+
+### Access Container Shell
+
+```bash
+docker exec -it viction-node sh
+```
+
+### Check Sync Status
+
+```bash
+docker exec viction-node sh -c 'curl -X POST --data '"'"'{"jsonrpc":"2.0","method":"eth_syncing","params":[],"id":1}'"'"' -H "Content-Type: application/json" http://localhost:8545'
+```
+
+### Stop Container
+
+```bash
+docker stop viction-node
+```
+
+### Remove Container
+
+```bash
+docker rm viction-node
+```
+
+### Update to Latest Version
+
+```bash
+docker pull buildonviction/node:v2.5.1
+docker stop viction-node
+docker rm viction-node
+# Run the docker run command again with the same parameters
+```
+
+## Production Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Data Persistence" icon="database">
+    - Always use named volumes or bind mounts
+    - Regularly backup keystore and data directories
+    - Use volume drivers for cloud storage
+    - Monitor disk space usage
+  </Card>
+
+  <Card title="Resource Limits" icon="gauge">
+    Set resource constraints:
+    
+    ```bash
+    --memory="4g" \
+    --cpus="2.0" \
+    --storage-opt size=500G
+    ```
+  </Card>
+
+  <Card title="Security" icon="shield">
+    - Don't expose RPC publicly without authentication
+    - Use firewall rules to restrict access
+    - Rotate credentials regularly
+    - Use Docker secrets for sensitive data
+  </Card>
+
+  <Card title="Monitoring" icon="chart-line">
+    - Use `--restart unless-stopped` for auto-restart
+    - Configure log rotation
+    - Monitor container health
+    - Set up alerts for downtime
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Container keeps restarting">
+    Check logs:
+    ```bash
+    docker logs viction-node
+    ```
+    
+    Common issues:
+    - Invalid password file
+    - Missing keystore files
+    - Insufficient disk space
+    - Port already in use
+  </Accordion>
+
+  <Accordion title="Cannot connect to RPC">
+    Verify:
+    - Container is running: `docker ps`
+    - Ports are mapped: `docker port viction-node`
+    - Firewall allows connections
+    - RPC endpoint is accessible from host
+  </Accordion>
+
+  <Accordion title="Slow sync performance">
+    Optimize:
+    - Increase container memory limit
+    - Use SSD storage
+    - Check network bandwidth
+    - Consider using fast sync mode
+  </Accordion>
+
+  <Accordion title="High disk usage">
+    Solutions:
+    - Use `--gcmode full` instead of archive
+    - Disable `--store-reward` if not needed
+    - Set up log rotation
+    - Prune Docker system: `docker system prune`
+  </Accordion>
+</AccordionGroup>
+
+## Multi-Node Setup
+
+For advanced users running multiple nodes:
+
+```yaml docker-compose.multi.yml
+version: '3.8'
+
+services:
+  mainnet-node:
+    image: buildonviction/node:v2.5.1
+    container_name: viction-mainnet
+    restart: unless-stopped
+    ports:
+      - "8545:8545"
+      - "30303:30303"
+    volumes:
+      - ./mainnet/data:/tomochain/data
+      - ./mainnet/keystore:/tomochain/keystore
+      - ./mainnet/password:/tomochain/password
+    environment:
+      - IDENTITY=mainnet-node
+      - NETWORK_ID=88
+
+  testnet-node:
+    image: buildonviction/node:v2.5.1
+    container_name: viction-testnet
+    restart: unless-stopped
+    ports:
+      - "8546:8545"
+      - "30304:30303"
+    volumes:
+      - ./testnet/data:/tomochain/data
+      - ./testnet/keystore:/tomochain/keystore
+      - ./testnet/password:/tomochain/password
+    environment:
+      - IDENTITY=testnet-node
+      - NETWORK_ID=89
+      - P2P_PORT=30303
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Configuration Reference" icon="gear" href="/nodes/configuration">
+    Learn about all available configuration options
+  </Card>
+  <Card title="Running a Full Node" icon="circle-nodes" href="/nodes/running-fullnode">
+    Detailed guide on operating a full node
+  </Card>
+</CardGroup>

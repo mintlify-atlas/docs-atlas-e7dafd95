@@ -1,97 +1,115 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: Introduction to Viction
+description: A scalable blockchain platform with Proof of Stake Voting consensus, 150 masternodes, near-zero fees, and 2-second block times
 ---
 
-## Setting up
+# Welcome to Viction
 
-Get your documentation site up and running in minutes.
+Viction Blockchain is an innovative solution to the scalability problem with the Ethereum blockchain. Our mission is to be a leading force in building the Internet of Value, and its infrastructure. We are working to create an alternative, scalable financial system which is more secure, transparent, efficient, inclusive, and equitable for everyone.
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
+## Key Features
 
-## Make it yours
+Viction delivers enterprise-grade performance while maintaining full EVM compatibility:
 
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
+<CardGroup cols={2}>
+  <Card title="Near-Zero Fees" icon="coins">
+    Transaction costs minimized for mass adoption and real-world applications
   </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
+  <Card title="2-Second Block Times" icon="clock">
+    Fast transaction confirmation for instant payment experiences
   </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+  <Card title="150 Masternodes" icon="server">
+    Decentralized network secured by Proof of Stake Voting consensus
   </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
+  <Card title="EVM Compatible" icon="code">
+    Run Ethereum smart contracts and dApps without modification
   </Card>
-</Columns>
+</CardGroup>
 
-## Create beautiful pages
+## Network Architecture
 
-Everything you need to create world-class documentation.
+Viction relies on a system of 150 Masternodes with a Proof of Stake Voting consensus that ensures:
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
+- **Security**: Double validation and staking via smart contracts
+- **Stability**: "True" randomization processes for masternode selection
+- **Chain Finality**: Guaranteed transaction finality through advanced consensus
 
-## Need inspiration?
+### Consensus Parameters (Mainnet)
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+```json
+{
+  "ChainId": 88,
+  "Period": 2,          // 2 seconds between blocks
+  "Epoch": 900,         // Epoch length for checkpoints
+  "Reward": 250,        // Block reward in VIC
+  "RewardCheckpoint": 900,
+  "Gap": 5              // Preparation time for next epoch
+}
+```
+
+## DeFi Features
+
+Viction includes built-in DeFi protocols for decentralized trading and lending:
+
+<CardGroup cols={2}>
+  <Card title="TomoX DEX" icon="arrow-right-arrow-left" href="/features/tomox-dex">
+    On-chain order matching for decentralized token trading
+  </Card>
+  <Card title="TomoX Lending" icon="hand-holding-dollar" href="/features/tomox-lending">
+    Peer-to-peer lending and borrowing with collateralization
+  </Card>
+</CardGroup>
+
+## Get Started
+
+<CardGroup cols={3}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Run your first Viction node in minutes
+  </Card>
+  <Card title="Core Concepts" icon="book" href="/concepts/architecture">
+    Understand Viction's architecture and consensus
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/overview">
+    Explore the RPC API and CLI commands
+  </Card>
+</CardGroup>
+
+## Network Information
+
+<CardGroup cols={2}>
+  <Card title="Mainnet" icon="globe">
+    **Chain ID:** 88  
+    **Explorer:** [https://vicscan.xyz](https://vicscan.xyz)  
+    **Website:** [https://viction.xyz](https://viction.xyz)
+  </Card>
+  <Card title="Testnet" icon="flask">
+    **Chain ID:** 89  
+    **Explorer:** [https://testnet.vicscan.xyz](https://testnet.vicscan.xyz)  
+    **Docs:** [https://docs.viction.xyz](https://docs.viction.xyz)
+  </Card>
+</CardGroup>
+
+## Resources
+
+- [Official Website](https://viction.xyz)
+- [Documentation Portal](https://docs.viction.xyz)
+- [GitHub Repository](https://github.com/BuildOnViction/victionchain)
+- [Block Explorer](https://vicscan.xyz)
+- [White Papers](https://docs.viction.xyz/whitepaper-and-research)
+
+## Next Steps
+
+<Steps>
+  <Step title="Install Viction">
+    Follow the [installation guide](/installation) to set up your node
+  </Step>
+  <Step title="Run a Full Node">
+    Learn how to [run a full node](/nodes/running-fullnode) on the network
+  </Step>
+  <Step title="Become a Masternode">
+    Explore [masternode requirements](/concepts/masternodes) and setup
+  </Step>
+  <Step title="Develop on Viction">
+    Start [building applications](/development/building-from-source) on Viction
+  </Step>
+</Steps>

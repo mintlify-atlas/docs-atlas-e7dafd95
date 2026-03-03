@@ -1,0 +1,187 @@
+---
+title: "RPC API Overview"
+description: "Introduction to Viction's JSON-RPC API for blockchain interaction"
+---
+
+## Introduction
+
+Viction provides a JSON-RPC API that allows applications to interact with the blockchain. The API is compatible with Ethereum's JSON-RPC specification, making it easy to integrate existing Ethereum tools and libraries.
+
+## API Namespaces
+
+The Viction RPC API is organized into the following namespaces:
+
+<CardGroup cols={2}>
+  <Card title="eth" icon="ethereum" href="/api/eth-namespace">
+    Ethereum-compatible methods for querying blockchain data, managing accounts, and sending transactions
+  </Card>
+  
+  <Card title="net" icon="network-wired" href="/api/net-namespace">
+    Network-related methods for checking connectivity and network version
+  </Card>
+  
+  <Card title="web3" icon="cube" href="/api/web3-namespace">
+    Web3 utility methods including client version and SHA3 hashing
+  </Card>
+  
+  <Card title="personal" icon="user-lock" href="/api/personal-namespace">
+    Account management methods for creating, importing, and managing wallets
+  </Card>
+  
+  <Card title="debug" icon="bug" href="/api/debug-namespace">
+    Debugging and diagnostic methods for transaction tracing and state inspection
+  </Card>
+</CardGroup>
+
+## Connection Methods
+
+Viction nodes support multiple connection methods:
+
+### HTTP/HTTPS
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' \
+  https://rpc.viction.xyz
+```
+
+### WebSocket
+```javascript
+const WebSocket = require('ws');
+const ws = new WebSocket('wss://ws.viction.xyz');
+
+ws.on('open', () => {
+  ws.send(JSON.stringify({
+    jsonrpc: '2.0',
+    method: 'eth_blockNumber',
+    params: [],
+    id: 1
+  }));
+});
+```
+
+### IPC (Inter-Process Communication)
+```bash
+geth attach /path/to/geth.ipc
+```
+
+## Request Format
+
+All JSON-RPC requests follow this structure:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "method_name",
+  "params": [],
+  "id": 1
+}
+```
+
+<ParamField path="jsonrpc" type="string" required>
+  Protocol version (always "2.0")
+</ParamField>
+
+<ParamField path="method" type="string" required>
+  The RPC method to call (e.g., "eth_blockNumber")
+</ParamField>
+
+<ParamField path="params" type="array" required>
+  Array of method parameters (can be empty)
+</ParamField>
+
+<ParamField path="id" type="number" required>
+  Request identifier for matching responses
+</ParamField>
+
+## Response Format
+
+Successful responses:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": "0x4b7"
+}
+```
+
+Error responses:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "error": {
+    "code": -32600,
+    "message": "Invalid request"
+  }
+}
+```
+
+<ResponseField name="result" type="any">
+  The result of the method call (type varies by method)
+</ResponseField>
+
+<ResponseField name="error" type="object">
+  Error object if the request failed
+  <Expandable title="properties">
+    <ResponseField name="code" type="number">
+      Error code
+    </ResponseField>
+    <ResponseField name="message" type="string">
+      Error description
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Data Encoding
+
+### Hexadecimal Encoding
+
+All numeric values and binary data are encoded as hexadecimal strings with the `0x` prefix:
+
+- **Quantities** (integers): Encoded as hex, no leading zeros (except `0x0`)
+  - Example: `1207` → `0x4b7`
+- **Data** (byte arrays): Encoded as hex, even length, two hex digits per byte
+  - Example: `[1, 2, 3]` → `0x010203`
+
+### Addresses
+
+Ethereum-style addresses are 20-byte hex strings:
+```
+0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb
+```
+
+### Block Identifiers
+
+Block numbers can be specified as:
+- **Hex number**: `0x4b7` (specific block)
+- **"latest"**: Most recent block
+- **"earliest"**: Genesis block
+- **"pending"**: Pending block being mined
+
+## Rate Limiting
+
+<Warning>
+Public RPC endpoints may have rate limits. For production applications, consider running your own node or using a dedicated RPC provider.
+</Warning>
+
+## API Compatibility
+
+Viction's RPC API is compatible with:
+- Ethereum JSON-RPC specification
+- Web3.js library
+- Ethers.js library
+- Other Ethereum-compatible tools
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Ethereum Methods" icon="ethereum" href="/api/eth-namespace">
+    Explore the eth namespace for blockchain queries
+  </Card>
+  
+  <Card title="Account Management" icon="wallet" href="/api/personal-namespace">
+    Learn about personal namespace methods
+  </Card>
+</CardGroup>

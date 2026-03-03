@@ -1,0 +1,394 @@
+---
+title: 'Account Commands'
+description: 'Manage Viction blockchain accounts and wallets'
+---
+
+## Overview
+
+The `tomo account` command provides a comprehensive set of subcommands for managing Viction blockchain accounts. Accounts are stored in encrypted format using the keystore mechanism.
+
+## Synopsis
+
+```bash
+tomo account <command> [options]
+```
+
+## Description
+
+Manage accounts, list all existing accounts, import a private key into a new account, create a new account or update an existing account.
+
+It supports interactive mode, when you are prompted for password as well as non-interactive mode where passwords are supplied via a given password file. Non-interactive mode is only meant for scripted use on test networks or known safe environments.
+
+<Warning>
+  Make sure you remember the password you gave when creating a new account (with either new or import). Without it you are not able to unlock your account.
+</Warning>
+
+<Info>
+  Keys are stored under `<DATADIR>/keystore`. It is safe to transfer the entire directory or the individual keys therein between nodes by simply copying.
+</Info>
+
+## Subcommands
+
+### list
+
+Print summary of existing accounts.
+
+```bash
+tomo account list [options]
+```
+
+#### Options
+
+<ParamField path="datadir" type="string">
+  Data directory for the databases and keystore
+</ParamField>
+
+<ParamField path="keystore" type="string">
+  Directory for the keystore (default = inside the datadir)
+</ParamField>
+
+#### Example
+
+```bash
+tomo account list
+```
+
+#### Output Format
+
+```
+Account #0: {0x1234567890abcdef1234567890abcdef12345678} keystore:///path/to/keystore/UTC--2024-01-01T00-00-00.000000000Z--1234567890abcdef1234567890abcdef12345678
+Account #1: {0xabcdef1234567890abcdef1234567890abcdef12} keystore:///path/to/keystore/UTC--2024-01-02T00-00-00.000000000Z--abcdef1234567890abcdef1234567890abcdef12
+```
+
+### new
+
+Create a new account.
+
+```bash
+tomo account new [options]
+```
+
+#### Options
+
+<ParamField path="datadir" type="string">
+  Data directory for the databases and keystore
+</ParamField>
+
+<ParamField path="keystore" type="string">
+  Directory for the keystore (default = inside the datadir)
+</ParamField>
+
+<ParamField path="password" type="string">
+  Password file to use for non-interactive password input
+</ParamField>
+
+<ParamField path="lightkdf" type="boolean">
+  Reduce key-derivation RAM & CPU usage at some expense of KDF strength
+</ParamField>
+
+#### Interactive Example
+
+```bash
+tomo account new
+```
+
+You will be prompted to enter and confirm a password:
+
+```
+Your new account is locked with a password. Please give a password. Do not forget this password.
+Passphrase: 
+Repeat passphrase: 
+Address: {0x1234567890abcdef1234567890abcdef12345678}
+```
+
+#### Non-Interactive Example
+
+```bash
+tomo account new --password /path/to/password.txt
+```
+
+<Warning>
+  For non-interactive use, the passphrase can be specified with the --password flag. This is meant to be used for testing only. It is a bad idea to save your password to file or expose in any other way.
+</Warning>
+
+### update
+
+Update an existing account.
+
+```bash
+tomo account update <address> [options]
+```
+
+#### Options
+
+<ParamField path="datadir" type="string">
+  Data directory for the databases and keystore
+</ParamField>
+
+<ParamField path="keystore" type="string">
+  Directory for the keystore (default = inside the datadir)
+</ParamField>
+
+<ParamField path="lightkdf" type="boolean">
+  Reduce key-derivation RAM & CPU usage at some expense of KDF strength
+</ParamField>
+
+#### Description
+
+Update an existing account. The account is saved in the newest version in encrypted format. You are prompted for a passphrase to unlock the account and another to save the updated file.
+
+This command can be used to:
+- Migrate an account to the newest format
+- Change the password for an account (interactive mode only)
+
+#### Example
+
+```bash
+tomo account update 0x1234567890abcdef1234567890abcdef12345678
+```
+
+You will be prompted:
+
+```
+Unlocking account 0x1234567890abcdef1234567890abcdef12345678 | Attempt 1/3
+Passphrase: [enter old password]
+Please give a new password. Do not forget this password.
+Passphrase: [enter new password]
+Repeat passphrase: [confirm new password]
+```
+
+<Info>
+  When using --password flag, only format update can be performed. Changing your password is only possible interactively.
+</Info>
+
+### import
+
+Import a private key into a new account.
+
+```bash
+tomo account import <keyfile> [options]
+```
+
+#### Options
+
+<ParamField path="datadir" type="string">
+  Data directory for the databases and keystore
+</ParamField>
+
+<ParamField path="keystore" type="string">
+  Directory for the keystore (default = inside the datadir)
+</ParamField>
+
+<ParamField path="password" type="string">
+  Password file to use for non-interactive password input
+</ParamField>
+
+<ParamField path="lightkdf" type="boolean">
+  Reduce key-derivation RAM & CPU usage at some expense of KDF strength
+</ParamField>
+
+#### Description
+
+Imports an unencrypted private key from `<keyfile>` and creates a new account. The keyfile is assumed to contain an unencrypted private key in hexadecimal format.
+
+The account is saved in encrypted format, you are prompted for a passphrase.
+
+#### Example - Private Key File
+
+Create a file `private_key.txt` containing your private key:
+
+```
+1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+```
+
+Then import it:
+
+```bash
+tomo account import private_key.txt
+```
+
+Output:
+
+```
+Your new account is locked with a password. Please give a password. Do not forget this password.
+Passphrase: 
+Repeat passphrase: 
+Address: {0x1234567890abcdef1234567890abcdef12345678}
+```
+
+#### Non-Interactive Example
+
+```bash
+tomo account import private_key.txt --password /path/to/password.txt
+```
+
+<Warning>
+  As you can directly copy your encrypted accounts to another Viction instance, this import mechanism is not needed when you transfer an account between nodes. Simply copy the keystore files instead.
+</Warning>
+
+## Wallet Commands
+
+The `tomo wallet` command manages Tomochain presale wallets.
+
+```bash
+tomo wallet <command> [options]
+```
+
+### wallet import
+
+Import Tomochain presale wallet.
+
+```bash
+tomo wallet import <keyFile> [options]
+```
+
+#### Options
+
+<ParamField path="datadir" type="string">
+  Data directory for the databases and keystore
+</ParamField>
+
+<ParamField path="keystore" type="string">
+  Directory for the keystore (default = inside the datadir)
+</ParamField>
+
+<ParamField path="password" type="string">
+  Password file to use for non-interactive password input
+</ParamField>
+
+<ParamField path="lightkdf" type="boolean">
+  Reduce key-derivation RAM & CPU usage at some expense of KDF strength
+</ParamField>
+
+#### Example
+
+```bash
+tomo wallet import /path/to/presale.wallet
+```
+
+You will be prompted for the wallet password:
+
+```
+Passphrase: 
+Address: {0x1234567890abcdef1234567890abcdef12345678}
+```
+
+## Common Workflows
+
+### Creating a Masternode Account
+
+1. Create a new account:
+
+```bash
+tomo account new
+```
+
+2. Backup the keystore file (located in `~/.tomo/keystore/`)
+
+3. Note the address printed after creation
+
+4. Fund the account with VIC tokens
+
+5. Register the account as a masternode on TomoMaster
+
+### Recovering an Account
+
+1. Obtain your private key
+
+2. Save it to a temporary file (remove after import):
+
+```bash
+echo "your_private_key_hex" > temp_key.txt
+```
+
+3. Import the key:
+
+```bash
+tomo account import temp_key.txt
+```
+
+4. Securely delete the temporary file:
+
+```bash
+shred -u temp_key.txt
+```
+
+### Listing All Accounts
+
+```bash
+tomo account list --datadir ~/.tomo
+```
+
+### Updating Account Security
+
+To update an old keystore format or change password:
+
+```bash
+tomo account update 0xYourAddress
+```
+
+## Security Best Practices
+
+<Card title="Backup Your Keystore" icon="shield">
+  Always backup the keystore directory before making changes. Store backups in multiple secure locations.
+</Card>
+
+<Card title="Use Strong Passwords" icon="lock">
+  Use strong, unique passwords for each account. Consider using a password manager.
+</Card>
+
+<Card title="Secure Private Keys" icon="key">
+  Never share your private keys or keystore files. Never store private keys in plain text.
+</Card>
+
+<Card title="Test on Testnet First" icon="flask">
+  Always test account operations on testnet before using on mainnet, especially for automation scripts.
+</Card>
+
+## Keystore File Format
+
+Keystore files are JSON files encrypted with your password using the Web3 Secret Storage Definition. They contain:
+
+- Encrypted private key
+- Encryption parameters (cipher, KDF settings)
+- MAC for integrity verification
+- Account address
+
+Example filename format:
+```
+UTC--2024-01-01T12-30-45.123456789Z--1234567890abcdef1234567890abcdef12345678
+```
+
+## Troubleshooting
+
+### Account Not Found
+
+If `tomo account list` doesn't show your account:
+
+1. Verify you're using the correct `--datadir`
+2. Check if keystore files exist in `<datadir>/keystore/`
+3. Ensure keystore files have proper permissions (readable by tomo)
+
+### Failed to Unlock Account
+
+If you cannot unlock an account:
+
+1. Verify you're using the correct password
+2. Check if the keystore file is corrupted (restore from backup)
+3. Ensure the account address matches the keystore file
+
+### Ambiguous Address Error
+
+If multiple keystore files exist for the same address:
+
+```
+Multiple key files exist for address 0x...
+```
+
+The CLI will test your password against all matches and select the correct one. Remove duplicate files after verification.
+
+## See Also
+
+- [tomo Command](/cli/tomo-command) - Main command overview
+- [Console Commands](/cli/console-commands) - Interactive console for account management
+- [Flags Reference](/cli/flags-reference) - Complete flag reference

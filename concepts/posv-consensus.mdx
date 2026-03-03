@@ -1,0 +1,410 @@
+---
+title: PoSV Consensus Mechanism
+description: Deep dive into Viction's Proof of Stake Voting consensus algorithm
+---
+
+Proof of Stake Voting (PoSV) is Viction's innovative consensus mechanism that combines the security of Proof of Stake with a democratic voting system. It enables fast block times, low fees, and strong security guarantees.
+
+## Overview
+
+PoSV is designed to overcome the limitations of traditional Proof of Work while maintaining decentralization:
+
+- **2-Second Block Time**: Fast transaction confirmation
+- **150 Masternodes**: Fixed validator set elected by VIC token holders
+- **Double Validation**: Enhanced security through paired validation
+- **True Randomization**: Fair validator selection process
+
+## Consensus Parameters
+
+The PoSV consensus is configured with the following key parameters (from `params/config.go`):
+
+### Mainnet Configuration
+
+```go
+Posv: &PosvConfig{
+    Period:              2,      // 2 seconds between blocks
+    Epoch:               900,    // 900 blocks per epoch (~30 minutes)
+    Reward:              250,    // 250 VIC block reward
+    RewardCheckpoint:    900,    // Reward distribution every 900 blocks
+    Gap:                 5,      // 5 block gap before epoch transition
+    FoudationWalletAddr: common.HexToAddress("0x0000000000000000000000000000000000000068"),
+}
+```
+
+### Testnet Configuration
+
+Testnet uses identical parameters to mainnet for consistency:
+
+```go
+Posv: &PosvConfig{
+    Period:              2,
+    Epoch:               900,
+    Reward:              250,
+    RewardCheckpoint:    900,
+    Gap:                 5,
+    FoudationWalletAddr: common.HexToAddress("0x0000000000000000000000000000000000000068"),
+}
+```
+
+<Info>
+The `Gap` parameter creates a preparation period before the next epoch begins, allowing nodes to update their masternode lists.
+</Info>
+
+## Block Production Process
+
+### 1. Masternode Selection
+
+Masternodes take turns producing blocks in a deterministic round-robin order:
+
+```
+Block N:   Masternode[0] creates
+Block N+1: Masternode[1] creates
+Block N+2: Masternode[2] creates
+...
+Block N+149: Masternode[149] creates
+Block N+150: Masternode[0] creates (cycle repeats)
+```
+
+The turn calculation (from `consensus/posv/posv.go:580-612`):
+
+```go
+func (c *Posv) YourTurn(chain consensus.ChainReader, parent *types.Header, 
+    signer common.Address) (int, int, int, bool, error) {
+    masternodes := c.GetMasternodes(chain, parent)
+    
+    // Get previous block creator
+    pre, err := whoIsCreator(snap, parent)
+    preIndex := position(masternodes, pre)
+    
+    // Get current masternode position
+    curIndex := position(masternodes, signer)
+    
+    // Check if it's your turn: (previous + 1) % total == current
+    if (preIndex+1)%len(masternodes) == curIndex {
+        return len(masternodes), preIndex, curIndex, true, nil
+    }
+    return len(masternodes), preIndex, curIndex, false, nil
+}
+```
+
+### 2. Block Creation
+
+When it's a masternode's turn:
+
+1. **Prepare Header**: Set timestamp, difficulty, and extra data
+2. **Include Transactions**: Select transactions from the mempool
+3. **Execute State Transition**: Process all transactions and update state
+4. **Sign Block**: Create cryptographic signature using masternode's private key
+5. **Broadcast**: Propagate block to the network
+
+### 3. Block Validation
+
+Each block must pass multiple validation checks:
+
+#### Basic Validation
+
+- Timestamp is valid (not in the future, respects period)
+- Difficulty matches expected value
+- Extra data contains proper signatures
+- No uncles (PoSV doesn't support uncles)
+- Valid gas limit and usage
+
+#### Creator Authentication
+
+The block creator is verified by recovering the signer from the block signature:
+
+```go
+func ecrecover(header *types.Header, sigcache *lru.ARCCache) (common.Address, error) {
+    // Retrieve signature from header extra-data (last 65 bytes)
+    signature := header.Extra[len(header.Extra)-extraSeal:]
+    
+    // Recover public key from signature
+    pubkey, err := crypto.Ecrecover(sigHash(header).Bytes(), signature)
+    
+    // Derive Ethereum address from public key
+    var signer common.Address
+    copy(signer[:], crypto.Keccak256(pubkey[1:])[12:])
+    
+    return signer, nil
+}
+```
+
+## Double Validation
+
+Double validation is a key security feature that requires two masternodes to validate each block.
+
+### M1-M2 Pairing
+
+- **M1 (Creator)**: The masternode that creates and proposes the block
+- **M2 (Validator)**: The assigned masternode that validates and co-signs the block
+
+### Validator Assignment
+
+Validator pairs are determined at each epoch and stored in checkpoint blocks:
+
+```go
+func getM1M2(masternodes []common.Address, validators []int64, 
+    currentHeader *types.Header, config *params.ChainConfig) 
+    (map[common.Address]common.Address, uint64, error) {
+    
+    m1m2 := map[common.Address]common.Address{}
+    maxMNs := len(masternodes)
+    moveM2 := uint64(0)
+    
+    // Calculate rotation offset (TIPRandomize fork)
+    if config.IsTIPRandomize(currentHeader.Number) {
+        moveM2 = ((currentHeader.Number.Uint64() % config.Posv.Epoch) / 
+                  uint64(maxMNs)) % uint64(maxMNs)
+    }
+    
+    // Assign M2 validator to each M1 creator
+    for i, m1 := range masternodes {
+        m2Index := uint64(validators[i] % int64(maxMNs))
+        m2Index = (m2Index + moveM2) % uint64(maxMNs)
+        m1m2[m1] = masternodes[m2Index]
+    }
+    
+    return m1m2, moveM2, nil
+}
+```
+
+### Validation Process
+
+1. M1 creates block and signs it
+2. M2 receives the block and validates:
+   - All transactions are valid
+   - State transition is correct
+   - Block follows consensus rules
+3. M2 adds validator signature to block header
+4. Block is considered valid only with both signatures
+
+<Warning>
+Blocks produced after epoch 2 (block 1,800) must contain a valid validator signature or they will be rejected.
+</Warning>
+
+### Failure Handling
+
+If M2 fails to validate:
+
+- Block is not propagated
+- M1 may be penalized if repeatedly creating invalid blocks
+- Network waits for next masternode's turn
+- Failed validations count toward penalty calculation
+
+## Difficulty Calculation
+
+Viction uses difficulty to prioritize blocks when forks occur:
+
+```go
+func (c *Posv) calcDifficulty(chain consensus.ChainReader, parent *types.Header, 
+    signer common.Address) *big.Int {
+    
+    len, preIndex, curIndex, _, err := c.YourTurn(chain, parent, signer)
+    if err != nil {
+        return big.NewInt(int64(len + curIndex - preIndex))
+    }
+    
+    // Calculate "hop" distance
+    return big.NewInt(int64(len - Hop(len, preIndex, curIndex)))
+}
+
+func Hop(len, pre, cur int) int {
+    switch {
+    case pre < cur:
+        return cur - (pre + 1)  // Normal progression
+    case pre > cur:
+        return (len - pre) + (cur - 1)  // Wrapped around
+    default:
+        return len - 1  // Same position
+    }
+}
+```
+
+**In-turn difficulty**: When it's exactly your turn, difficulty is maximized (150 for 150 masternodes).
+
+**Out-of-turn difficulty**: When it's not your turn, difficulty decreases based on how far you are from your turn.
+
+<Info>
+Higher difficulty blocks are preferred during fork resolution, ensuring the correct masternode's block is chosen.
+</Info>
+
+## Epoch System
+
+An epoch is a fixed period of 900 blocks (~30 minutes with 2-second blocks).
+
+### Checkpoint Blocks
+
+Every 900 blocks, a checkpoint block is produced:
+
+```go
+checkpoint := (number % c.config.Epoch) == 0
+```
+
+#### Checkpoint Block Structure
+
+**Extra Data Format:**
+```
+[32 bytes vanity] [N * 20 bytes masternode addresses] [65 bytes seal]
+```
+
+**Special Fields:**
+- `Coinbase`: Must be zero address for checkpoint blocks
+- `Penalties`: Byte array of penalized masternode addresses
+- `Validators`: Encoded M1-M2 validator pairs
+
+### Masternode List Updates
+
+At checkpoint blocks:
+
+1. **Retrieve New Masternodes**: Query masternode smart contract
+2. **Apply Penalties**: Remove penalized masternodes from active set
+3. **Update Snapshot**: Store new masternode list in snapshot
+4. **Encode in Header**: Include masternode addresses in extra data
+
+```go
+if number >= c.config.Epoch && number%c.config.Epoch == 0 {
+    // Get penalties for this epoch
+    penMasternodes, err := c.HookPenaltyTIPSigning(chain, header, masternodes)
+    
+    // Remove penalized nodes
+    masternodes = common.RemoveItemFromArray(masternodes, penMasternodes)
+    
+    // Remove nodes penalized in last 4 epochs
+    for i := 1; i <= common.LimitPenaltyEpoch; i++ {
+        if number > uint64(i)*c.config.Epoch {
+            masternodes = RemovePenaltiesFromBlock(chain, masternodes, 
+                number-uint64(i)*c.config.Epoch)
+        }
+    }
+    
+    // Encode in header extra data
+    for _, masternode := range masternodes {
+        header.Extra = append(header.Extra, masternode[:]...)
+    }
+}
+```
+
+## Penalty System
+
+Masternodes that fail to perform their duties are automatically penalized.
+
+### Penalty Triggers
+
+- Missing block creation when it's their turn
+- Failing to validate blocks as assigned M2
+- Creating invalid blocks
+- Extended downtime or network issues
+
+### Penalty Duration
+
+Penalized masternodes are excluded for multiple epochs:
+
+```go
+const LimitPenaltyEpoch = 4  // Penalized for up to 4 epochs
+```
+
+### Penalty Recording
+
+Penalties are recorded in checkpoint block headers:
+
+```go
+// Calculate penalties
+penPenalties, err := c.HookPenaltyTIPSigning(chain, header, signers)
+
+// Convert to bytes and store in header
+bytePenalties := common.ExtractAddressToBytes(penPenalties)
+header.Penalties = bytePenalties
+```
+
+<Warning>
+Masternodes must maintain 99%+ uptime to avoid penalties. Repeated penalties can result in losing masternode status.
+</Warning>
+
+## Reward Distribution
+
+Block rewards are distributed at each checkpoint (every 900 blocks).
+
+### Reward Structure
+
+- **Block Reward**: 250 VIC per block
+- **Distribution**: Shared among masternodes and voters
+- **Foundation**: Portion allocated to foundation wallet
+
+### Reward Calculation
+
+Rewards are calculated based on:
+
+- Number of blocks signed in the epoch
+- Validator participation
+- Voting weight
+- Penalties applied
+
+## Finality
+
+Viction achieves fast finality through several mechanisms:
+
+### Soft Finality
+
+- **After 1 Block**: Very high confidence (~99%)
+- **After 2 Blocks**: Extremely high confidence due to double validation
+
+### Hard Finality
+
+- **After Checkpoint**: Absolute finality at epoch boundaries (900 blocks)
+- **Snapshot Stored**: State snapshot makes reorganization prohibitively expensive
+
+## Snapshot System
+
+The consensus engine maintains snapshots for efficient operation.
+
+### Snapshot Contents
+
+```go
+type Snapshot struct {
+    Number  uint64                          // Block number
+    Hash    common.Hash                     // Block hash
+    Signers map[common.Address]struct{}     // Current masternodes
+    Recents map[uint64]common.Address       // Recent signers
+    Votes   []*clique.Vote                  // Voting history
+    Tally   map[common.Address]clique.Tally // Vote tallies
+}
+```
+
+### Snapshot Storage
+
+Snapshots are stored:
+
+- **In-Memory**: Last 128 snapshots cached in LRU cache
+- **On-Disk**: Snapshots at checkpoint blocks persisted to database
+- **Key Format**: `posv-{block_hash}`
+
+### Snapshot Usage
+
+- Fast block validation (no need to replay history)
+- Quick masternode list lookup
+- Efficient sync for new nodes
+- Fork resolution
+
+## Security Considerations
+
+### Attack Resistance
+
+**51% Attack**: Requires controlling 76+ of 150 masternodes (significant capital requirement)
+
+**Nothing-at-Stake**: Prevented by masternode staking and penalty system
+
+**Long-Range Attack**: Mitigated by checkpoint finality and social consensus
+
+**DDoS Attack**: Double validation means attacker must target both M1 and M2
+
+### Network Assumptions
+
+- At least 67% of masternodes are honest and online
+- Network latency is reasonable (&lt;1 second for propagation)
+- Clock synchronization within acceptable bounds
+
+## Related Resources
+
+- [System Architecture](/concepts/architecture)
+- [Masternode System](/concepts/masternodes)
+- [Network Information](/concepts/network-information)

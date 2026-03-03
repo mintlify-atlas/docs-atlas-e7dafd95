@@ -1,0 +1,527 @@
+---
+title: "debug Namespace"
+description: "Debugging and diagnostic RPC methods for transaction tracing and state inspection"
+---
+
+<Warning>
+The `debug` namespace provides powerful introspection capabilities that can be resource-intensive. These methods should be used carefully and are typically only available on trusted nodes with debugging enabled.
+</Warning>
+
+## Overview
+
+The `debug` namespace offers methods for debugging transactions, tracing execution, inspecting state, and diagnosing blockchain issues.
+
+## Transaction Tracing
+
+### debug_traceTransaction
+
+Returns a detailed trace of a transaction's execution.
+
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  --data '{"jsonrpc":"2.0","method":"debug_traceTransaction","params":["0x1234...",{}],"id":1}' \
+  http://localhost:8545
+```
+
+<ParamField path="params[0]" type="string" required>
+  Transaction hash (32 bytes, hex encoded)
+</ParamField>
+
+<ParamField path="params[1]" type="object">
+  Trace configuration options
+  <Expandable title="properties">
+    <ParamField path="tracer" type="string">
+      Tracer type: "callTracer", "prestateTracer", or custom JavaScript
+    </ParamField>
+    <ParamField path="timeout" type="string">
+      Timeout in seconds (default: "5s")
+    </ParamField>
+    <ParamField path="disableStorage" type="boolean">
+      Disable storage capture (default: false)
+    </ParamField>
+    <ParamField path="disableMemory" type="boolean">
+      Disable memory capture (default: false)
+    </ParamField>
+    <ParamField path="disableStack" type="boolean">
+      Disable stack capture (default: false)
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ResponseField name="result" type="object">
+  Execution trace with opcode-level details
+  <Expandable title="properties">
+    <ResponseField name="gas" type="number">
+      Gas used
+    </ResponseField>
+    <ResponseField name="failed" type="boolean">
+      Whether execution failed
+    </ResponseField>
+    <ResponseField name="returnValue" type="string">
+      Return data (hex)
+    </ResponseField>
+    <ResponseField name="structLogs" type="array">
+      Array of execution steps
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+**Example Response:**
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "gas": 21000,
+    "failed": false,
+    "returnValue": "",
+    "structLogs": [
+      {
+        "pc": 0,
+        "op": "PUSH1",
+        "gas": 79000,
+        "gasCost": 3,
+        "depth": 1,
+        "stack": [],
+        "memory": []
+      }
+    ]
+  }
+}
+```
+
+---
+
+### debug_traceBlockByNumber
+
+Traces all transactions in a block by block number.
+
+<ParamField path="params[0]" type="string" required>
+  Block number (hex) or "latest"
+</ParamField>
+
+<ParamField path="params[1]" type="object">
+  Trace configuration (same as debug_traceTransaction)
+</ParamField>
+
+<ResponseField name="result" type="array">
+  Array of transaction traces for all transactions in the block
+</ResponseField>
+
+---
+
+### debug_traceBlockByHash
+
+Traces all transactions in a block by block hash.
+
+<ParamField path="params[0]" type="string" required>
+  Block hash (32 bytes, hex encoded)
+</ParamField>
+
+<ParamField path="params[1]" type="object">
+  Trace configuration (same as debug_traceTransaction)
+</ParamField>
+
+---
+
+### debug_traceBlock
+
+Traces all transactions in a raw block.
+
+<ParamField path="params[0]" type="string" required>
+  RLP-encoded block data (hex)
+</ParamField>
+
+<ParamField path="params[1]" type="object">
+  Trace configuration
+</ParamField>
+
+---
+
+## Block Inspection
+
+### debug_dumpBlock
+
+Returns the state of all accounts at a given block.
+
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  --data '{"jsonrpc":"2.0","method":"debug_dumpBlock","params":["latest"],"id":1}' \
+  http://localhost:8545
+```
+
+<ParamField path="params[0]" type="string" required>
+  Block number (hex) or "latest", "earliest", "pending"
+</ParamField>
+
+<ResponseField name="result" type="object">
+  State dump containing all account data
+  <Expandable title="properties">
+    <ResponseField name="root" type="string">
+      State root hash
+    </ResponseField>
+    <ResponseField name="accounts" type="object">
+      Map of address to account state
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+---
+
+### debug_printBlock
+
+Returns a human-readable representation of a block.
+
+<ParamField path="params[0]" type="number" required>
+  Block number (decimal)
+</ParamField>
+
+<ResponseField name="result" type="string">
+  Pretty-printed block information
+</ResponseField>
+
+---
+
+### debug_getBlockRlp
+
+Returns RLP-encoded block data.
+
+<ParamField path="params[0]" type="number" required>
+  Block number (decimal)
+</ParamField>
+
+<ResponseField name="result" type="string">
+  RLP-encoded block (hex)
+</ResponseField>
+
+---
+
+## State Inspection
+
+### debug_storageRangeAt
+
+Returns storage entries for a contract at a specific transaction.
+
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  --data '{"jsonrpc":"2.0","method":"debug_storageRangeAt","params":["0xblockHash",0,"0xcontractAddress","0x0",100],"id":1}' \
+  http://localhost:8545
+```
+
+<ParamField path="params[0]" type="string" required>
+  Block hash
+</ParamField>
+
+<ParamField path="params[1]" type="number" required>
+  Transaction index in block
+</ParamField>
+
+<ParamField path="params[2]" type="string" required>
+  Contract address
+</ParamField>
+
+<ParamField path="params[3]" type="string" required>
+  Starting storage key (hex)
+</ParamField>
+
+<ParamField path="params[4]" type="number" required>
+  Maximum number of entries to return
+</ParamField>
+
+<ResponseField name="result" type="object">
+  Storage range result
+  <Expandable title="properties">
+    <ResponseField name="storage" type="object">
+      Map of storage keys to values
+    </ResponseField>
+    <ResponseField name="nextKey" type="string">
+      Next key for pagination (null if complete)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+---
+
+### debug_preimage
+
+Returns the preimage of a hash stored in the database.
+
+<ParamField path="params[0]" type="string" required>
+  Hash (32 bytes, hex)
+</ParamField>
+
+<ResponseField name="result" type="string">
+  Preimage data (hex) or null if not found
+</ResponseField>
+
+---
+
+### debug_getModifiedAccountsByNumber
+
+Returns accounts modified between two blocks.
+
+<ParamField path="params[0]" type="number" required>
+  Start block number (decimal)
+</ParamField>
+
+<ParamField path="params[1]" type="number">
+  End block number (decimal, optional)
+</ParamField>
+
+<ResponseField name="result" type="array">
+  Array of addresses that were modified
+</ResponseField>
+
+---
+
+### debug_getModifiedAccountsByHash
+
+Returns accounts modified between two blocks (by hash).
+
+<ParamField path="params[0]" type="string" required>
+  Start block hash
+</ParamField>
+
+<ParamField path="params[1]" type="string">
+  End block hash (optional)
+</ParamField>
+
+---
+
+## Bad Blocks
+
+### debug_getBadBlocks
+
+Returns a list of recently rejected bad blocks.
+
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  --data '{"jsonrpc":"2.0","method":"debug_getBadBlocks","params":[],"id":1}' \
+  http://localhost:8545
+```
+
+<ResponseField name="result" type="array">
+  Array of bad block objects with rejection reasons
+</ResponseField>
+
+---
+
+## Chain Management
+
+### debug_setHead
+
+Rewinds the blockchain to a specific block number.
+
+<Warning>
+This is a destructive operation that removes blocks from the chain. Use with extreme caution.
+</Warning>
+
+<ParamField path="params[0]" type="string" required>
+  Block number to rewind to (hex)
+</ParamField>
+
+---
+
+### debug_seedHash
+
+Returns the seed hash used for PoW at a given block.
+
+<ParamField path="params[0]" type="number" required>
+  Block number (decimal)
+</ParamField>
+
+<ResponseField name="result" type="string">
+  Seed hash (hex)
+</ResponseField>
+
+---
+
+## Database Operations
+
+### debug_chaindbProperty
+
+Returns LevelDB properties.
+
+<ParamField path="params[0]" type="string" required>
+  Property name (e.g., "leveldb.stats")
+</ParamField>
+
+<ResponseField name="result" type="string">
+  Property value
+</ResponseField>
+
+---
+
+### debug_chaindbCompact
+
+Triggers a database compaction.
+
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  --data '{"jsonrpc":"2.0","method":"debug_chaindbCompact","params":[],"id":1}' \
+  http://localhost:8545
+```
+
+<ResponseField name="result" type="null">
+  null on success
+</ResponseField>
+
+<Note>
+Database compaction can take significant time and resources. Run during low-traffic periods.
+</Note>
+
+---
+
+## Usage Examples
+
+### JavaScript - Transaction Tracing
+
+```javascript
+const Web3 = require('web3');
+const web3 = new Web3('http://localhost:8545');
+
+// Trace a transaction
+async function traceTransaction(txHash) {
+  const trace = await web3.currentProvider.send({
+    jsonrpc: '2.0',
+    method: 'debug_traceTransaction',
+    params: [txHash, {
+      tracer: 'callTracer',
+      timeout: '10s'
+    }],
+    id: 1
+  });
+  
+  console.log('Gas used:', trace.result.gas);
+  console.log('Failed:', trace.result.failed);
+  return trace.result;
+}
+
+// Usage
+traceTransaction('0x1234...');
+```
+
+### Python - State Inspection
+
+```python
+from web3 import Web3
+
+w3 = Web3(Web3.HTTPProvider('http://localhost:8545'))
+
+# Get modified accounts
+def get_modified_accounts(start_block, end_block):
+    result = w3.provider.make_request(
+        'debug_getModifiedAccountsByNumber',
+        [start_block, end_block]
+    )
+    return result['result']
+
+# Get storage range
+def get_storage_range(block_hash, tx_index, contract_addr):
+    result = w3.provider.make_request(
+        'debug_storageRangeAt',
+        [block_hash, tx_index, contract_addr, '0x0', 100]
+    )
+    return result['result']
+```
+
+### Call Tracer Example
+
+```javascript
+// Trace with call tracer for high-level view
+const callTrace = await web3.currentProvider.send({
+  jsonrpc: '2.0',
+  method: 'debug_traceTransaction',
+  params: ['0xtxHash', {
+    tracer: 'callTracer'
+  }],
+  id: 1
+});
+
+// Result shows call hierarchy
+console.log(JSON.stringify(callTrace.result, null, 2));
+/*
+{
+  "type": "CALL",
+  "from": "0x...",
+  "to": "0x...",
+  "value": "0x0",
+  "gas": "0x...",
+  "gasUsed": "0x...",
+  "input": "0x...",
+  "output": "0x...",
+  "calls": [
+    {
+      "type": "DELEGATECALL",
+      "from": "0x...",
+      "to": "0x..."
+    }
+  ]
+}
+*/
+```
+
+---
+
+## Performance Considerations
+
+<Warning>
+**Resource Usage**
+
+Debug methods can be extremely resource-intensive:
+
+- `debug_traceTransaction`: Can take seconds to minutes for complex transactions
+- `debug_traceBlockByNumber`: Multiplies trace time by number of transactions
+- `debug_dumpBlock`: Can return very large responses for blocks with many accounts
+- Storage operations: May require scanning large portions of the state trie
+</Warning>
+
+### Best Practices
+
+1. **Use timeouts**: Always set reasonable timeouts for trace operations
+2. **Disable unnecessary data**: Use `disableStorage`, `disableMemory`, `disableStack` to reduce overhead
+3. **Limit scope**: Trace specific transactions rather than entire blocks when possible
+4. **Cache results**: Store trace results to avoid recomputation
+5. **Use dedicated nodes**: Run debug operations on separate nodes from production RPC
+
+---
+
+## Enabling Debug APIs
+
+To enable debug APIs on a Viction node:
+
+```bash
+tomo --http --http.api "eth,net,web3,debug" \
+     --http.corsdomain "*" \
+     --http.vhosts "*"
+```
+
+<Warning>
+Never expose debug APIs on public endpoints. They can:
+- Consume significant resources
+- Reveal sensitive state information
+- Be used for DoS attacks
+- Impact node performance
+</Warning>
+
+---
+
+## Common Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Transaction Debugging" icon="bug">
+    Trace failed transactions to identify revert reasons and execution flow
+  </Card>
+  
+  <Card title="Gas Optimization" icon="gauge">
+    Analyze opcode execution to optimize gas usage in smart contracts
+  </Card>
+  
+  <Card title="State Analysis" icon="database">
+    Inspect contract storage and account states at specific blocks
+  </Card>
+  
+  <Card title="Security Auditing" icon="shield">
+    Trace contract interactions to verify security properties
+  </Card>
+</CardGroup>

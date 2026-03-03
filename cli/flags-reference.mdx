@@ -1,0 +1,741 @@
+---
+title: 'Flags Reference'
+description: 'Complete reference for all tomo command line flags'
+---
+
+## Overview
+
+This page provides a comprehensive reference for all command-line flags available in the `tomo` command. Flags are organized by category for easy navigation.
+
+## General Settings
+
+<ParamField path="datadir" type="string" default="~/.tomo">
+  Data directory for the databases and keystore. This is where all blockchain data, accounts, and node configuration are stored.
+  
+  ```bash
+  tomo --datadir /custom/path
+  ```
+</ParamField>
+
+<ParamField path="keystore" type="string" default="<datadir>/keystore">
+  Directory for the keystore. By default, keystores are stored inside the datadir.
+  
+  ```bash
+  tomo --keystore /secure/keystore
+  ```
+</ParamField>
+
+<ParamField path="identity" type="string">
+  Custom node name to identify your node on the network.
+  
+  ```bash
+  tomo --identity "MyVictionNode"
+  ```
+</ParamField>
+
+<ParamField path="networkid" type="integer" default="89">
+  Network identifier (integer, 89=Viction Mainnet).
+  
+  ```bash
+  tomo --networkid 89
+  ```
+</ParamField>
+
+<ParamField path="tomo-testnet" type="boolean">
+  Connect to the Viction test network.
+  
+  ```bash
+  tomo --tomo-testnet
+  ```
+</ParamField>
+
+## Account Management
+
+<ParamField path="unlock" type="string">
+  Comma-separated list of accounts to unlock at startup. Can be addresses or account indices.
+  
+  ```bash
+  tomo --unlock "0xAddress1,0xAddress2"
+  ```
+</ParamField>
+
+<ParamField path="password" type="string">
+  Password file to use for non-interactive password input. File should contain one password per line.
+  
+  ```bash
+  tomo --password /path/to/password.txt
+  ```
+</ParamField>
+
+## Sync Modes
+
+<ParamField path="syncmode" type="string" default="fast">
+  Blockchain sync mode: "fast", "full", or "light".
+  
+  - **fast**: Downloads blocks and states, validates recent transactions
+  - **full**: Downloads all blocks and executes all transactions
+  - **light**: Downloads block headers only
+  
+  ```bash
+  tomo --syncmode fast
+  ```
+</ParamField>
+
+<ParamField path="fast" type="boolean">
+  Enable fast syncing through state downloads (shorthand for --syncmode fast).
+  
+  ```bash
+  tomo --fast
+  ```
+</ParamField>
+
+<ParamField path="light" type="boolean">
+  Enable light client mode.
+  
+  ```bash
+  tomo --light
+  ```
+</ParamField>
+
+<ParamField path="gcmode" type="string" default="full">
+  Blockchain garbage collection mode: "full" or "archive".
+  
+  - **full**: Prunes old state data (recommended)
+  - **archive**: Keeps all historical state data
+  
+  ```bash
+  tomo --gcmode archive
+  ```
+</ParamField>
+
+## Network Settings
+
+<ParamField path="port" type="integer" default="30303">
+  Network listening port for P2P connections.
+  
+  ```bash
+  tomo --port 30303
+  ```
+</ParamField>
+
+<ParamField path="maxpeers" type="integer" default="25">
+  Maximum number of network peers. Set to 0 to disable networking.
+  
+  ```bash
+  tomo --maxpeers 50
+  ```
+</ParamField>
+
+<ParamField path="maxpendpeers" type="integer" default="0">
+  Maximum number of pending connection attempts. Defaults are used if set to 0.
+  
+  ```bash
+  tomo --maxpendpeers 10
+  ```
+</ParamField>
+
+<ParamField path="bootnodes" type="string">
+  Comma-separated enode URLs for P2P discovery bootstrap.
+  
+  ```bash
+  tomo --bootnodes "enode://node1@ip1:port1,enode://node2@ip2:port2"
+  ```
+</ParamField>
+
+<ParamField path="bootnodesv4" type="string">
+  Comma-separated enode URLs for P2P v4 discovery bootstrap.
+  
+  ```bash
+  tomo --bootnodesv4 "enode://..."
+  ```
+</ParamField>
+
+<ParamField path="bootnodesv5" type="string">
+  Comma-separated enode URLs for P2P v5 discovery bootstrap.
+  
+  ```bash
+  tomo --bootnodesv5 "enode://..."
+  ```
+</ParamField>
+
+<ParamField path="nodekey" type="string">
+  P2P node key file path.
+  
+  ```bash
+  tomo --nodekey /path/to/nodekey
+  ```
+</ParamField>
+
+<ParamField path="nodekeyhex" type="string">
+  P2P node key as hex (for testing purposes).
+  
+  ```bash
+  tomo --nodekeyhex "0x..."
+  ```
+</ParamField>
+
+<ParamField path="nat" type="string" default="any">
+  NAT port mapping mechanism: any, none, upnp, pmp, extip:&lt;IP&gt;.
+  
+  ```bash
+  tomo --nat "extip:1.2.3.4"
+  ```
+</ParamField>
+
+<ParamField path="nodiscover" type="boolean">
+  Disables the peer discovery mechanism (manual peer addition only).
+  
+  ```bash
+  tomo --nodiscover
+  ```
+</ParamField>
+
+<ParamField path="v5disc" type="boolean">
+  Enables the experimental RLPx V5 (Topic Discovery) mechanism.
+  
+  ```bash
+  tomo --v5disc
+  ```
+</ParamField>
+
+<ParamField path="netrestrict" type="string">
+  Restricts network communication to the given IP networks (CIDR masks).
+  
+  ```bash
+  tomo --netrestrict "192.168.0.0/16,10.0.0.0/8"
+  ```
+</ParamField>
+
+## RPC Settings
+
+<ParamField path="rpc" type="boolean">
+  Enable the HTTP-RPC server.
+  
+  ```bash
+  tomo --rpc
+  ```
+</ParamField>
+
+<ParamField path="rpcaddr" type="string" default="127.0.0.1">
+  HTTP-RPC server listening interface.
+  
+  ```bash
+  tomo --rpc --rpcaddr 0.0.0.0
+  ```
+</ParamField>
+
+<ParamField path="rpcport" type="integer" default="8545">
+  HTTP-RPC server listening port.
+  
+  ```bash
+  tomo --rpc --rpcport 8545
+  ```
+</ParamField>
+
+<ParamField path="rpcapi" type="string">
+  API modules offered over the HTTP-RPC interface. Comma-separated list.
+  
+  Available modules: eth, net, web3, personal, admin, debug, miner, txpool
+  
+  ```bash
+  tomo --rpc --rpcapi "eth,net,web3"
+  ```
+</ParamField>
+
+<ParamField path="rpccorsdomain" type="string">
+  Comma-separated list of domains from which to accept cross-origin requests (browser enforced).
+  
+  ```bash
+  tomo --rpc --rpccorsdomain "https://example.com"
+  ```
+</ParamField>
+
+<ParamField path="rpcvhosts" type="string" default="localhost">
+  Comma-separated list of virtual hostnames from which to accept requests (server enforced). Accepts '*' wildcard.
+  
+  ```bash
+  tomo --rpc --rpcvhosts "*"
+  ```
+</ParamField>
+
+<ParamField path="rpctimeout" type="integer" default="120">
+  Timeout for RPC HTTP handlers in seconds.
+  
+  ```bash
+  tomo --rpc --rpctimeout 300
+  ```
+</ParamField>
+
+## WebSocket Settings
+
+<ParamField path="ws" type="boolean">
+  Enable the WebSocket-RPC server.
+  
+  ```bash
+  tomo --ws
+  ```
+</ParamField>
+
+<ParamField path="wsaddr" type="string" default="127.0.0.1">
+  WebSocket-RPC server listening interface.
+  
+  ```bash
+  tomo --ws --wsaddr 0.0.0.0
+  ```
+</ParamField>
+
+<ParamField path="wsport" type="integer" default="8546">
+  WebSocket-RPC server listening port.
+  
+  ```bash
+  tomo --ws --wsport 8546
+  ```
+</ParamField>
+
+<ParamField path="wsapi" type="string">
+  API modules offered over the WebSocket-RPC interface.
+  
+  ```bash
+  tomo --ws --wsapi "eth,net,web3"
+  ```
+</ParamField>
+
+<ParamField path="wsorigins" type="string">
+  Origins from which to accept WebSocket requests.
+  
+  ```bash
+  tomo --ws --wsorigins "*"
+  ```
+</ParamField>
+
+## IPC Settings
+
+<ParamField path="ipcdisable" type="boolean">
+  Disable the IPC-RPC server.
+  
+  ```bash
+  tomo --ipcdisable
+  ```
+</ParamField>
+
+<ParamField path="ipcpath" type="string">
+  Filename for IPC socket/pipe within the datadir (explicit paths escape it).
+  
+  ```bash
+  tomo --ipcpath /custom/path/tomo.ipc
+  ```
+</ParamField>
+
+## Staking/Mining Settings
+
+<ParamField path="mine" type="boolean">
+  Enable staking (masternode block creation).
+  
+  ```bash
+  tomo --mine
+  ```
+</ParamField>
+
+<ParamField path="minerthreads" type="integer" default="1">
+  Number of CPU threads to use for staking.
+  
+  ```bash
+  tomo --minerthreads 4
+  ```
+</ParamField>
+
+<ParamField path="etherbase" type="string" default="0">
+  Public address for block mining rewards (default = first account created).
+  
+  ```bash
+  tomo --etherbase 0xYourMasternodeAddress
+  ```
+</ParamField>
+
+<ParamField path="gasprice" type="integer">
+  Minimal gas price to accept for mining a transaction (in Wei).
+  
+  ```bash
+  tomo --gasprice 250000000
+  ```
+</ParamField>
+
+<ParamField path="targetgaslimit" type="integer">
+  Target gas limit sets the artificial target gas floor for blocks to mine.
+  
+  ```bash
+  tomo --targetgaslimit 84000000
+  ```
+</ParamField>
+
+## Transaction Pool Settings
+
+<ParamField path="txpool.nolocals" type="boolean">
+  Disables price exemptions for locally submitted transactions.
+  
+  ```bash
+  tomo --txpool.nolocals
+  ```
+</ParamField>
+
+<ParamField path="txpool.journal" type="string" default="transactions.rlp">
+  Disk journal for local transaction to survive node restarts.
+  
+  ```bash
+  tomo --txpool.journal /path/to/transactions.rlp
+  ```
+</ParamField>
+
+<ParamField path="txpool.rejournal" type="duration" default="1h">
+  Time interval to regenerate the local transaction journal.
+  
+  ```bash
+  tomo --txpool.rejournal 30m
+  ```
+</ParamField>
+
+<ParamField path="txpool.pricelimit" type="integer" default="1">
+  Minimum gas price limit to enforce for acceptance into the pool.
+  
+  ```bash
+  tomo --txpool.pricelimit 1
+  ```
+</ParamField>
+
+<ParamField path="txpool.pricebump" type="integer" default="10">
+  Price bump percentage to replace an already existing transaction.
+  
+  ```bash
+  tomo --txpool.pricebump 10
+  ```
+</ParamField>
+
+<ParamField path="txpool.accountslots" type="integer" default="16">
+  Minimum number of executable transaction slots guaranteed per account.
+  
+  ```bash
+  tomo --txpool.accountslots 32
+  ```
+</ParamField>
+
+<ParamField path="txpool.globalslots" type="integer" default="4096">
+  Maximum number of executable transaction slots for all accounts.
+  
+  ```bash
+  tomo --txpool.globalslots 8192
+  ```
+</ParamField>
+
+<ParamField path="txpool.accountqueue" type="integer" default="64">
+  Maximum number of non-executable transaction slots permitted per account.
+  
+  ```bash
+  tomo --txpool.accountqueue 128
+  ```
+</ParamField>
+
+<ParamField path="txpool.globalqueue" type="integer" default="1024">
+  Maximum number of non-executable transaction slots for all accounts.
+  
+  ```bash
+  tomo --txpool.globalqueue 2048
+  ```
+</ParamField>
+
+<ParamField path="txpool.lifetime" type="duration" default="3h">
+  Maximum amount of time non-executable transactions are queued.
+  
+  ```bash
+  tomo --txpool.lifetime 6h
+  ```
+</ParamField>
+
+## Performance Tuning
+
+<ParamField path="cache" type="integer" default="1024">
+  Megabytes of memory allocated to internal caching (min 16MB / database forced).
+  
+  ```bash
+  tomo --cache 4096
+  ```
+</ParamField>
+
+<ParamField path="cache.database" type="integer" default="75">
+  Percentage of cache memory allowance to use for database I/O.
+  
+  ```bash
+  tomo --cache.database 50
+  ```
+</ParamField>
+
+<ParamField path="cache.gc" type="integer" default="25">
+  Percentage of cache memory allowance to use for trie pruning.
+  
+  ```bash
+  tomo --cache.gc 50
+  ```
+</ParamField>
+
+## TomoX (DEX) Settings
+
+<ParamField path="tomox" type="boolean">
+  Enable the TomoX protocol.
+  
+  ```bash
+  tomo --tomox
+  ```
+</ParamField>
+
+<ParamField path="tomox.datadir" type="string" default="<datadir>/tomox">
+  Data directory for the TomoX databases.
+  
+  ```bash
+  tomo --tomox --tomox.datadir /custom/tomox/path
+  ```
+</ParamField>
+
+<ParamField path="tomox.dbengine" type="string" default="leveldb">
+  Database engine for TomoX: "leveldb" or "mongodb".
+  
+  ```bash
+  tomo --tomox --tomox.dbengine mongodb
+  ```
+</ParamField>
+
+<ParamField path="tomox.dbName" type="string" default="tomodex">
+  Database name for TomoX.
+  
+  ```bash
+  tomo --tomox --tomox.dbName mydex
+  ```
+</ParamField>
+
+<ParamField path="tomox.dbConnectionUrl" type="string" default="localhost:27017">
+  Connection URL to database if dbEngine is mongodb. Format: Host:port. Multiple instances separated by comma.
+  
+  ```bash
+  tomo --tomox --tomox.dbConnectionUrl "localhost:27017,localhost:27018"
+  ```
+</ParamField>
+
+<ParamField path="tomox.dbReplicaSetName" type="string">
+  Replica set name if Master-Slave MongoDB setup is used.
+  
+  ```bash
+  tomo --tomox --tomox.dbReplicaSetName "rs0"
+  ```
+</ParamField>
+
+## Console Settings
+
+<ParamField path="jspath" type="string" default=".">
+  JavaScript root path for `loadScript` in the console.
+  
+  ```bash
+  tomo console --jspath /path/to/scripts
+  ```
+</ParamField>
+
+<ParamField path="exec" type="string">
+  Execute JavaScript statement and exit (non-interactive mode).
+  
+  ```bash
+  tomo console --exec "eth.blockNumber"
+  ```
+</ParamField>
+
+<ParamField path="preload" type="string">
+  Comma-separated list of JavaScript files to preload into the console.
+  
+  ```bash
+  tomo console --preload "script1.js,script2.js"
+  ```
+</ParamField>
+
+## Logging and Monitoring
+
+<ParamField path="ethstats" type="string">
+  Reporting URL of an ethstats service. Format: nodename:secret@host:port
+  
+  ```bash
+  tomo --ethstats "mynode:secret@stats.viction.xyz:443"
+  ```
+</ParamField>
+
+<ParamField path="metrics" type="boolean">
+  Enable metrics collection and reporting.
+  
+  ```bash
+  tomo --metrics
+  ```
+</ParamField>
+
+<ParamField path="metrics.expensive" type="boolean">
+  Enable expensive metrics collection and reporting.
+  
+  ```bash
+  tomo --metrics --metrics.expensive
+  ```
+</ParamField>
+
+<ParamField path="metrics.addr" type="string" default="127.0.0.1">
+  Enable stand-alone metrics HTTP server listening interface.
+  
+  ```bash
+  tomo --metrics --metrics.addr 0.0.0.0
+  ```
+</ParamField>
+
+<ParamField path="metrics.port" type="integer" default="6060">
+  Metrics HTTP server listening port.
+  
+  ```bash
+  tomo --metrics --metrics.port 6060
+  ```
+</ParamField>
+
+## Advanced Settings
+
+<ParamField path="lightkdf" type="boolean">
+  Reduce key-derivation RAM & CPU usage at some expense of KDF strength.
+  
+  ```bash
+  tomo account new --lightkdf
+  ```
+</ParamField>
+
+<ParamField path="announce-txs" type="boolean">
+  Always commit transactions immediately.
+  
+  ```bash
+  tomo --announce-txs
+  ```
+</ParamField>
+
+<ParamField path="store-reward" type="boolean">
+  Store reward information to file.
+  
+  ```bash
+  tomo --store-reward
+  ```
+</ParamField>
+
+<ParamField path="rollback" type="string">
+  Rollback chain to specified block hash.
+  
+  ```bash
+  tomo --rollback 0xBlockHash
+  ```
+</ParamField>
+
+<ParamField path="rewound" type="integer" default="0">
+  Number of blocks to rewind from the current head.
+  
+  ```bash
+  tomo --rewound 100
+  ```
+</ParamField>
+
+<ParamField path="reexec" type="integer" default="256">
+  Number of blocks to re-execute during state regeneration.
+  
+  ```bash
+  tomo --reexec 512
+  ```
+</ParamField>
+
+<ParamField path="vmdebug" type="boolean">
+  Record information useful for VM and contract debugging.
+  
+  ```bash
+  tomo --vmdebug
+  ```
+</ParamField>
+
+## Whisper Settings
+
+<ParamField path="shh" type="boolean">
+  Enable Whisper protocol.
+  
+  ```bash
+  tomo --shh
+  ```
+</ParamField>
+
+<ParamField path="shh.maxmessagesize" type="integer" default="1048576">
+  Maximum message size accepted (in bytes).
+  
+  ```bash
+  tomo --shh --shh.maxmessagesize 2097152
+  ```
+</ParamField>
+
+<ParamField path="shh.pow" type="float" default="0.2">
+  Minimum POW (Proof of Work) accepted.
+  
+  ```bash
+  tomo --shh --shh.pow 0.5
+  ```
+</ParamField>
+
+## Common Flag Combinations
+
+### Full Masternode Setup
+
+```bash
+tomo \
+  --datadir /data/viction \
+  --networkid 89 \
+  --port 30303 \
+  --rpc \
+  --rpcaddr 0.0.0.0 \
+  --rpcport 8545 \
+  --rpcapi eth,net,web3 \
+  --ws \
+  --wsaddr 0.0.0.0 \
+  --wsport 8546 \
+  --wsapi eth,net,web3 \
+  --etherbase 0xYourAddress \
+  --mine \
+  --unlock 0xYourAddress \
+  --password /secure/password.txt \
+  --maxpeers 50 \
+  --cache 4096
+```
+
+### Testnet Node
+
+```bash
+tomo \
+  --tomo-testnet \
+  --datadir /data/testnet \
+  --rpc \
+  --rpcapi eth,net,web3,personal \
+  --ws \
+  --wsapi eth,net,web3
+```
+
+### Archive Node
+
+```bash
+tomo \
+  --gcmode archive \
+  --syncmode full \
+  --cache 8192 \
+  --datadir /large/storage/viction
+```
+
+### Light Client
+
+```bash
+tomo \
+  --light \
+  --rpc \
+  --rpcapi eth,net,web3
+```
+
+## See Also
+
+- [tomo Command](/cli/tomo-command) - Main command overview
+- [Account Commands](/cli/account-commands) - Account management
+- [Console Commands](/cli/console-commands) - Interactive console usage

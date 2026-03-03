@@ -1,0 +1,350 @@
+---
+title: Security Best Practices
+description: Security guidelines for operating Viction nodes
+---
+
+## Overview
+
+Securing your Viction node is critical to protecting your accounts, funds, and network participation. This guide covers essential security practices for node operators.
+
+## Account Security
+
+### Private Key Management
+
+<Warning>
+Never share your private keys or keystore files. Anyone with access to your private key has complete control over your account and funds.
+</Warning>
+
+**Best practices:**
+
+1. **Never expose unencrypted keys**
+   - Always encrypt keys with strong passphrases
+   - Delete unencrypted key files immediately after import
+   - Never transmit keys over insecure channels
+
+2. **Use strong passphrases**
+   - Minimum 12 characters
+   - Mix uppercase, lowercase, numbers, and symbols
+   - Avoid dictionary words and personal information
+   - Use a password manager
+
+3. **Backup securely**
+   - Store backups in multiple secure locations
+   - Use encrypted storage for backups
+   - Keep offline/cold storage for critical accounts
+   - Test backup restoration regularly
+
+### Keystore Encryption
+
+Viction uses scrypt-based encryption for keystore files:
+
+**Standard encryption (recommended for production):**
+```bash
+tomo account new
+```
+
+**Lightweight encryption (testing only):**
+```bash
+tomo account new --lightkdf
+```
+
+<Warning>
+Never use `--lightkdf` for production accounts. The reduced security makes accounts vulnerable to brute-force attacks.
+</Warning>
+
+### Account Unlocking
+
+Unlocking accounts exposes decrypted keys in memory:
+
+```bash
+tomo --unlock <address> --password <passwordfile>
+```
+
+<Warning>
+Only unlock accounts when absolutely necessary. Unlocked accounts are vulnerable if the node is compromised. Never unlock accounts on public-facing nodes.
+</Warning>
+
+**Safer alternatives:**
+- Use external signers (hardware wallets, remote signing services)
+- Unlock accounts only for specific operations, then re-lock
+- Use separate nodes for signing vs. public RPC access
+
+## Network Security
+
+### Firewall Configuration
+
+Restrict network access to your node:
+
+**Required ports:**
+- **30303**: P2P networking (TCP & UDP)
+- **8545**: HTTP RPC (restrict to trusted IPs)
+- **8546**: WebSocket RPC (restrict to trusted IPs)
+- **30301**: IPC (local only)
+
+**Firewall rules example (iptables):**
+```bash
+# Allow P2P from anywhere
+iptables -A INPUT -p tcp --dport 30303 -j ACCEPT
+iptables -A INPUT -p udp --dport 30303 -j ACCEPT
+
+# Allow RPC only from trusted IP
+iptables -A INPUT -p tcp -s 192.168.1.100 --dport 8545 -j ACCEPT
+iptables -A INPUT -p tcp --dport 8545 -j DROP
+
+# Allow WebSocket only from trusted IP
+iptables -A INPUT -p tcp -s 192.168.1.100 --dport 8546 -j ACCEPT
+iptables -A INPUT -p tcp --dport 8546 -j DROP
+```
+
+### RPC Security
+
+<Warning>
+Never expose RPC endpoints to the public internet without proper authentication and rate limiting. Unrestricted RPC access can lead to DoS attacks and unauthorized transactions.
+</Warning>
+
+**Secure RPC configuration:**
+
+1. **Bind to localhost only (if local access sufficient):**
+```bash
+tomo --rpc --rpcaddr 127.0.0.1 --rpcport 8545
+```
+
+2. **Restrict API modules:**
+```bash
+tomo --rpc --rpcapi "eth,net,web3" --rpcaddr 127.0.0.1
+```
+
+Avoid exposing dangerous APIs:
+- `admin`: Node administration
+- `debug`: Debugging functions
+- `personal`: Account management
+- `miner`: Mining control
+
+3. **Use CORS carefully:**
+```bash
+tomo --rpc --rpccorsdomain "https://yourdapp.com"
+```
+
+4. **Virtual hosts whitelist:**
+```bash
+tomo --rpc --rpcvhosts "yourdomain.com,localhost"
+```
+
+### P2P Security
+
+**Trusted nodes only mode:**
+```bash
+tomo --nodiscover --maxpeers 10
+```
+
+Configure static/trusted nodes in `<datadir>/static-nodes.json`:
+```json
+[
+  "enode://pubkey1@ip1:30303",
+  "enode://pubkey2@ip2:30303"
+]
+```
+
+## Node Security
+
+### File System Permissions
+
+Restrict access to node data:
+
+```bash
+# Set proper ownership
+chown -R viction:viction /path/to/datadir
+
+# Restrict permissions
+chmod 700 /path/to/datadir
+chmod 600 /path/to/datadir/keystore/*
+```
+
+<Warning>
+Keystore files should only be readable by the node user. Never set world-readable permissions (chmod 644 or 777) on keystore files.
+</Warning>
+
+### Process Isolation
+
+Run the node as a dedicated user (not root):
+
+```bash
+# Create dedicated user
+useradd -r -s /bin/false viction
+
+# Run as dedicated user
+su - viction -c "tomo --datadir /var/lib/viction"
+```
+
+### System Updates
+
+Keep your system and node software updated:
+
+```bash
+# Update system packages
+apt update && apt upgrade  # Debian/Ubuntu
+yum update                 # RHEL/CentOS
+
+# Update Viction node
+# Download latest release and verify checksum
+wget https://github.com/BuildOnViction/tomochain/releases/download/vX.X.X/tomo-linux-amd64
+shasum -a 256 tomo-linux-amd64
+# Compare with published checksum
+```
+
+## Monitoring and Logging
+
+### Enable Security Logging
+
+```bash
+tomo --verbosity 3 2>&1 | tee -a /var/log/viction/node.log
+```
+
+### Monitor for Suspicious Activity
+
+Watch for:
+- Unauthorized RPC access attempts
+- Unusual transaction patterns
+- Unexpected account unlock attempts
+- Abnormal peer connections
+- High resource usage
+
+### Log Rotation
+
+Configure log rotation to prevent disk exhaustion:
+
+```bash
+# /etc/logrotate.d/viction
+/var/log/viction/*.log {
+    daily
+    rotate 30
+    compress
+    delaycompress
+    notifempty
+    create 0640 viction viction
+    sharedscripts
+}
+```
+
+## Disaster Recovery
+
+### Backup Strategy
+
+**Critical data to backup:**
+1. Keystore files (`<datadir>/keystore/*`)
+2. Node key (`<datadir>/nodekey`)
+3. Configuration files
+4. Static/trusted nodes configuration
+
+**Backup script example:**
+```bash
+#!/bin/bash
+BACKUP_DIR="/secure/backup/location"
+DATE=$(date +%Y%m%d)
+
+# Backup keystore
+tar -czf "$BACKUP_DIR/keystore-$DATE.tar.gz" \
+  -C ~/.ethereum keystore/
+
+# Encrypt backup
+gpg --encrypt --recipient your@email.com \
+  "$BACKUP_DIR/keystore-$DATE.tar.gz"
+
+# Remove unencrypted backup
+rm "$BACKUP_DIR/keystore-$DATE.tar.gz"
+```
+
+### Recovery Testing
+
+Regularly test backup restoration:
+
+```bash
+# Test restore on isolated system
+mkdir -p /tmp/test-restore
+tar -xzf keystore-backup.tar.gz -C /tmp/test-restore
+tomo account list --keystore /tmp/test-restore/keystore
+```
+
+## Smart Contract Security
+
+If deploying contracts:
+
+1. **Audit contracts** before deployment
+2. **Use established patterns** (OpenZeppelin, etc.)
+3. **Test thoroughly** on testnet
+4. **Implement access controls**
+5. **Plan for upgrades** (proxy patterns)
+6. **Monitor contract activity**
+
+## Masternode Security
+
+Additional considerations for masternode operators:
+
+<Warning>
+Masternode accounts require special protection as they participate in consensus. Compromise of a masternode account can affect network security and result in slashing.
+</Warning>
+
+**Masternode best practices:**
+
+1. **Use dedicated infrastructure**
+   - Separate server for masternode
+   - No other services on masternode server
+   - Hardened operating system
+
+2. **DDoS protection**
+   - Use DDoS mitigation services
+   - Implement rate limiting
+   - Have backup nodes ready
+
+3. **High availability**
+   - Monitor uptime continuously
+   - Automated failover procedures
+   - Redundant network connections
+
+4. **Key management**
+   - Consider hardware security modules (HSM)
+   - Multi-signature setups where possible
+   - Regular key rotation procedures
+
+## Incident Response
+
+### If Keys Are Compromised
+
+1. **Immediately** transfer funds to new secure account
+2. Stop the compromised node
+3. Investigate breach vector
+4. Rotate all credentials
+5. Review logs for unauthorized activity
+6. Update security measures
+
+### If Node Is Compromised
+
+1. Isolate the node from network
+2. Preserve logs and system state for analysis
+3. Check for unauthorized transactions
+4. Verify keystore integrity
+5. Rebuild from clean installation
+6. Restore from verified backups
+7. Investigate root cause
+
+## Security Checklist
+
+- [ ] Strong passphrases on all accounts
+- [ ] Keystore files backed up securely
+- [ ] Node running as non-root user
+- [ ] Firewall configured with minimal open ports
+- [ ] RPC access restricted to trusted IPs
+- [ ] Dangerous RPC APIs disabled
+- [ ] System packages up to date
+- [ ] Viction software up to date
+- [ ] Security logging enabled
+- [ ] Log rotation configured
+- [ ] Backup restoration tested
+- [ ] Monitoring and alerting active
+- [ ] Incident response plan documented
+
+## Resources
+
+- [Viction Security Audits](https://docs.viction.xyz)
+- [Ethereum Security Best Practices](https://consensys.github.io/smart-contract-best-practices/)
+- [OWASP Blockchain Security](https://owasp.org/www-project-blockchain/)

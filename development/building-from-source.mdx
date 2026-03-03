@@ -1,0 +1,245 @@
+---
+title: Building from Source
+description: Build Viction blockchain node from source code
+---
+
+## Prerequisites
+
+Before building Viction from source, ensure you have the following installed:
+
+- **Go**: Version 1.18 or later ([Download Go](https://go.dev/dl/))
+- **C Compiler**: Required on all platforms (Linux, Windows, macOS)
+- **Git**: For cloning the repository
+
+## Clone the Repository
+
+First, clone the Viction blockchain repository:
+
+```bash
+git clone https://github.com/BuildOnViction/victionchain.git
+cd victionchain
+```
+
+## Build Methods
+
+### Standard Build
+
+The standard build process uses the custom build script to compile the Viction node:
+
+```bash
+go run build/ci.go install
+```
+
+This command will:
+- Build all packages and executables
+- Place binaries in `build/bin/` directory
+- Build the main `tomo` executable along with utility tools
+
+### Building Specific Components
+
+#### Build Main Node Only
+
+```bash
+make tomo
+```
+
+The binary will be available at `build/bin/tomo`.
+
+#### Build Bootnode
+
+```bash
+make bootnode
+```
+
+Output: `build/bin/bootnode`
+
+#### Build GC (Garbage Collection Tool)
+
+```bash
+make gc
+```
+
+Output: `build/bin/gc`
+
+#### Build Puppeth (Network Wizard)
+
+```bash
+make puppeth
+```
+
+Output: `build/bin/puppeth`
+
+#### Build All Tools
+
+```bash
+make all
+```
+
+## Cross-Compilation
+
+Viction supports cross-compilation for multiple platforms using `xgo`.
+
+### Cross-Compile for All Platforms
+
+```bash
+make tomo-cross
+```
+
+This builds for:
+- Windows (amd64)
+- macOS (darwin amd64)
+- Linux (386, amd64, mips64, mips64le)
+
+### Platform-Specific Builds
+
+#### Linux Builds
+
+```bash
+# All Linux architectures
+make tomo-linux
+
+# Specific architectures
+make tomo-linux-amd64
+make tomo-linux-386
+make tomo-linux-mips64
+make tomo-linux-mips64le
+```
+
+#### macOS Builds
+
+```bash
+# All macOS architectures
+make tomo-darwin
+
+# Specific architectures
+make tomo-darwin-amd64
+make tomo-darwin-386
+```
+
+#### Windows Build
+
+```bash
+make tomo-windows-amd64
+```
+
+### Custom Go Version for Cross-Compilation
+
+You can specify a custom Go version:
+
+```bash
+make tomo-linux-amd64 GO=1.19.0
+```
+
+## Docker Build
+
+Alternatively, build using Docker:
+
+```bash
+docker build --file Dockerfile.node -t "buildonviction/node:v2.5.1" .
+```
+
+## Build Configuration
+
+### Build Flags
+
+The build system automatically includes:
+- Git commit hash in the binary
+- Optimized flags for macOS (`-s` linker flag)
+- Custom `GOBIN` path pointing to `build/bin`
+
+### Environment Variables
+
+- `GOBIN`: Set to `$(pwd)/build/bin`
+- `GO`: Go version for cross-compilation (default: 1.18.10)
+- `CC`: C compiler for cross-compilation
+- `GOARCH`: Target architecture
+- `CGO_ENABLED`: Enabled for cross-compilation
+
+## Testing the Build
+
+### Run Tests
+
+```bash
+make test
+```
+
+Or using the build script:
+
+```bash
+go run build/ci.go test
+```
+
+### Run Tests with Coverage
+
+```bash
+go run build/ci.go test -coverage
+```
+
+This generates a `coverage.txt` file with code coverage information.
+
+## Code Quality
+
+### Run Linters
+
+```bash
+go run build/ci.go lint
+```
+
+This runs multiple linters including:
+- `vet`: Go vet for potential issues
+- `gofmt`: Code formatting check
+- `misspell`: Spelling errors
+- `goconst`: Repeated constants
+- `unconvert`: Unnecessary conversions
+- `gosimple`: Simplification suggestions
+
+### Format Code
+
+```bash
+make gofmt
+```
+
+## Cleaning Build Artifacts
+
+Remove all built binaries and build artifacts:
+
+```bash
+make clean
+```
+
+This removes:
+- `build/_workspace/pkg/`
+- All binaries in `build/bin/`
+
+## Troubleshooting
+
+### Go Version Issues
+
+Viction requires Go 1.9 or later. If you encounter build errors, check your Go version:
+
+```bash
+go version
+```
+
+### Missing Dependencies
+
+If you encounter missing dependencies, ensure you're running from the repository root:
+
+```bash
+go mod download
+```
+
+### Cross-Compilation Errors
+
+For cross-compilation issues, ensure `xgo` is installed:
+
+```bash
+go get github.com/karalabe/xgo
+```
+
+## Next Steps
+
+After building, you can:
+- [Configure and run a full node](/nodes/running-fullnode)
+- [Run a masternode](/nodes/running-masternode)
+- [Explore the RPC API](/development/rpc-api)

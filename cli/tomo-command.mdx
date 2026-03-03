@@ -1,0 +1,226 @@
+---
+title: 'tomo Command'
+description: 'Main command for running a Viction blockchain node'
+---
+
+## Overview
+
+The `tomo` command is the main entry point for running a Viction blockchain node. It provides a comprehensive set of subcommands and flags for node operation, account management, blockchain interaction, and more.
+
+## Synopsis
+
+```bash
+tomo [global options] command [command options] [arguments...]
+```
+
+## Description
+
+When executed without any subcommands, `tomo` starts a full Viction node with the configuration specified by the global options. The node will:
+
+- Initialize based on command line arguments
+- Connect to the Viction network
+- Sync the blockchain
+- Start RPC/IPC interfaces (if enabled)
+- Begin staking if configured as a masternode
+
+## Main Commands
+
+### Blockchain Commands
+
+<CardGroup cols={2}>
+  <Card title="init" icon="rocket">
+    Bootstrap and initialize a new genesis block
+  </Card>
+  <Card title="import" icon="download">
+    Import a blockchain file
+  </Card>
+  <Card title="export" icon="upload">
+    Export blockchain into file
+  </Card>
+  <Card title="removedb" icon="trash">
+    Remove blockchain and state databases
+  </Card>
+  <Card title="dump" icon="file-export">
+    Dump a specific block from storage
+  </Card>
+  <Card title="db" icon="database">
+    Low level database operations
+  </Card>
+</CardGroup>
+
+### Account Commands
+
+<CardGroup cols={2}>
+  <Card title="account" icon="user">
+    Manage accounts (list, create, update, import)
+  </Card>
+  <Card title="wallet" icon="wallet">
+    Manage Tomochain presale wallets
+  </Card>
+</CardGroup>
+
+### Console Commands
+
+<CardGroup cols={2}>
+  <Card title="console" icon="terminal">
+    Start an interactive JavaScript environment
+  </Card>
+  <Card title="attach" icon="link">
+    Start an interactive JavaScript environment (connect to node)
+  </Card>
+  <Card title="js" icon="code">
+    Execute the specified JavaScript files
+  </Card>
+</CardGroup>
+
+### Utility Commands
+
+<CardGroup cols={2}>
+  <Card title="version" icon="info">
+    Print version numbers
+  </Card>
+  <Card title="dumpconfig" icon="file-lines">
+    Show configuration values
+  </Card>
+</CardGroup>
+
+## Common Usage Examples
+
+### Start a full node
+
+```bash
+tomo
+```
+
+### Start a node with custom data directory
+
+```bash
+tomo --datadir /path/to/data
+```
+
+### Start a node on testnet
+
+```bash
+tomo --tomo-testnet
+```
+
+### Start a masternode with staking enabled
+
+```bash
+tomo --etherbase 0xYourAddress --mine --unlock 0xYourAddress --password /path/to/password.txt
+```
+
+### Start with RPC enabled
+
+```bash
+tomo --rpc --rpcaddr 0.0.0.0 --rpcport 8545 --rpcapi eth,net,web3,personal
+```
+
+### Start with WebSocket enabled
+
+```bash
+tomo --ws --wsaddr 0.0.0.0 --wsport 8546 --wsapi eth,net,web3
+```
+
+## Global Options
+
+For a complete list of all available flags and options, see the [Flags Reference](/cli/flags-reference) page.
+
+## Node Operation
+
+### Masternode Validation
+
+When running as a masternode, the node will:
+
+1. Validate if the configured etherbase is registered as a masternode
+2. Automatically enable staking mode if validation succeeds
+3. Set the number of staking threads (default: 1)
+4. Monitor checkpoint events and adjust staking status accordingly
+
+### Checkpoint Reconciliation
+
+The node continuously monitors checkpoint events to:
+
+- Verify masternode status
+- Enable staking when masternode is detected
+- Disable staking when masternode status is revoked
+
+## Network Configuration
+
+### Mainnet
+
+By default, `tomo` connects to the Viction mainnet (Network ID: 89).
+
+```bash
+tomo --networkid 89
+```
+
+### Testnet
+
+To connect to the Viction testnet:
+
+```bash
+tomo --tomo-testnet
+```
+
+## Account Management
+
+The node supports automatic account unlocking for staking and transaction signing:
+
+<ParamField path="unlock" type="string">
+  Comma-separated list of accounts to unlock on startup
+</ParamField>
+
+<ParamField path="password" type="string">
+  Path to password file for non-interactive unlocking
+</ParamField>
+
+### Example
+
+```bash
+tomo --unlock "0xAddress1,0xAddress2" --password /path/to/password.txt
+```
+
+## Sync Modes
+
+Viction supports multiple blockchain synchronization modes:
+
+- **Full Sync**: Downloads all blocks and executes all transactions
+- **Fast Sync**: Downloads blocks and states, validates recent transactions
+- **Light Sync**: Downloads block headers only (not recommended for masternodes)
+
+```bash
+# Fast sync (default)
+tomo --syncmode fast
+
+# Full sync
+tomo --syncmode full
+
+# Light client mode
+tomo --light
+```
+
+<Warning>
+  Light clients do not support staking and cannot operate as masternodes.
+</Warning>
+
+## Data Directory Structure
+
+The data directory contains:
+
+- `chaindata/` - Blockchain data
+- `keystore/` - Encrypted account keys
+- `tomox/` - TomoX DEX data (if enabled)
+- `tomo.ipc` - IPC endpoint socket
+- `nodes/` - Peer node information
+
+## Exit Codes
+
+- `0` - Successful execution
+- `1` - Error occurred during execution
+
+## See Also
+
+- [Account Commands](/cli/account-commands) - Detailed account management operations
+- [Console Commands](/cli/console-commands) - Interactive JavaScript console usage
+- [Flags Reference](/cli/flags-reference) - Complete list of all flags and options

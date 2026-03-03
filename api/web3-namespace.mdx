@@ -1,0 +1,292 @@
+---
+title: "web3 Namespace"
+description: "Web3 utility RPC methods for client information and cryptographic functions"
+---
+
+## Overview
+
+The `web3` namespace provides utility methods for client version information and cryptographic operations.
+
+## Methods
+
+### web3_clientVersion
+
+Returns the current client version.
+
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  --data '{"jsonrpc":"2.0","method":"web3_clientVersion","params":[],"id":1}' \
+  https://rpc.viction.xyz
+```
+
+<ResponseField name="result" type="string">
+  Client name and version information
+</ResponseField>
+
+**Example Response:**
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": "Viction/v2.3.0-stable/linux-amd64/go1.19.5"
+}
+```
+
+The version string typically includes:
+- Client name (Viction)
+- Version number (v2.3.0-stable)
+- Operating system (linux-amd64)
+- Go version (go1.19.5)
+
+---
+
+### web3_sha3
+
+Returns Keccak-256 (not the standardized SHA3-256) hash of the given data.
+
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  --data '{"jsonrpc":"2.0","method":"web3_sha3","params":["0x68656c6c6f20776f726c64"],"id":1}' \
+  https://rpc.viction.xyz
+```
+
+<ParamField path="params[0]" type="string" required>
+  Data to hash (must be hex encoded with "0x" prefix)
+</ParamField>
+
+<ResponseField name="result" type="string">
+  Keccak-256 hash of the input data (32 bytes, hex encoded)
+</ResponseField>
+
+**Example Response:**
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": "0x47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad"
+}
+```
+
+<Note>
+Despite the name "sha3", this method uses Keccak-256, which is what Ethereum and Viction use for hashing. This is different from the final SHA3-256 standard.
+</Note>
+
+---
+
+## Usage Examples
+
+### JavaScript (Web3.js)
+
+```javascript
+const Web3 = require('web3');
+const web3 = new Web3('https://rpc.viction.xyz');
+
+// Get client version
+web3.eth.getNodeInfo()
+  .then(version => console.log('Client version:', version));
+
+// Hash data using Keccak-256
+const hash = web3.utils.sha3('hello world');
+console.log('Hash:', hash);
+// Output: 0x47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad
+
+// Hash bytes
+const hashBytes = web3.utils.sha3('0x68656c6c6f20776f726c64');
+console.log('Hash from bytes:', hashBytes);
+```
+
+### JavaScript (Ethers.js)
+
+```javascript
+const { JsonRpcProvider, keccak256, toUtf8Bytes } = require('ethers');
+const provider = new JsonRpcProvider('https://rpc.viction.xyz');
+
+// Get client version
+provider.send('web3_clientVersion', [])
+  .then(version => console.log('Client version:', version));
+
+// Hash data using Keccak-256
+const hash = keccak256(toUtf8Bytes('hello world'));
+console.log('Hash:', hash);
+```
+
+### Python (Web3.py)
+
+```python
+from web3 import Web3
+
+w3 = Web3(Web3.HTTPProvider('https://rpc.viction.xyz'))
+
+# Get client version
+client_version = w3.clientVersion
+print(f'Client version: {client_version}')
+
+# Hash data using Keccak-256
+hash_value = w3.keccak(text='hello world')
+print(f'Hash: {hash_value.hex()}')
+
+# Hash hex data
+hash_hex = w3.keccak(hexstr='68656c6c6f20776f726c64')
+print(f'Hash from hex: {hash_hex.hex()}')
+```
+
+---
+
+## Common Use Cases
+
+### Client Version Checking
+
+```javascript
+const web3 = new Web3('https://rpc.viction.xyz');
+
+async function checkClientVersion() {
+  const version = await web3.eth.getNodeInfo();
+  console.log('Connected to:', version);
+  
+  // Parse version string
+  const versionMatch = version.match(/v(\d+\.\d+\.\d+)/);
+  if (versionMatch) {
+    const nodeVersion = versionMatch[1];
+    console.log('Node version:', nodeVersion);
+    
+    // Check if version is compatible
+    const minVersion = '2.3.0';
+    if (compareVersions(nodeVersion, minVersion) >= 0) {
+      console.log('Node version is compatible');
+    } else {
+      console.warn('Node version may be outdated');
+    }
+  }
+}
+```
+
+### Data Hashing for Verification
+
+```javascript
+// Hash transaction data for verification
+const txData = '0x' + Buffer.from('transaction data').toString('hex');
+const txHash = web3.utils.sha3(txData);
+
+// Hash message for signing (Ethereum Signed Message)
+const message = 'Please sign this message';
+const messageHash = web3.utils.sha3(
+  '\x19Ethereum Signed Message:\n' + message.length + message
+);
+
+console.log('Message hash:', messageHash);
+```
+
+### Creating Deterministic Identifiers
+
+```javascript
+// Create unique identifier from multiple inputs
+function createIdentifier(account, nonce, data) {
+  const combined = web3.utils.encodePacked(
+    { value: account, type: 'address' },
+    { value: nonce, type: 'uint256' },
+    { value: data, type: 'bytes' }
+  );
+  return web3.utils.sha3(combined);
+}
+
+const id = createIdentifier(
+  '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
+  1,
+  '0x1234'
+);
+console.log('Identifier:', id);
+```
+
+---
+
+## Keccak-256 Details
+
+### What is Keccak-256?
+
+Keccak-256 is the cryptographic hash function used in Ethereum and Viction for:
+
+- **Address generation**: Creating addresses from public keys
+- **Transaction hashing**: Generating unique transaction identifiers
+- **Storage keys**: Computing storage slot locations
+- **Merkle trees**: Building block headers and state tries
+- **Message signing**: Hashing messages before signature
+
+### Properties
+
+<CardGroup cols={2}>
+  <Card title="Deterministic" icon="fingerprint">
+    Same input always produces same output
+  </Card>
+  
+  <Card title="One-way" icon="lock">
+    Computationally infeasible to reverse
+  </Card>
+  
+  <Card title="Collision Resistant" icon="shield">
+    Hard to find two inputs with same hash
+  </Card>
+  
+  <Card title="Fixed Size" icon="ruler">
+    Always produces 32-byte (256-bit) output
+  </Card>
+</CardGroup>
+
+### Hash Collision
+
+```javascript
+// Two different inputs will produce different hashes
+const hash1 = web3.utils.sha3('hello world');
+const hash2 = web3.utils.sha3('hello world!');
+
+console.log(hash1 === hash2); // false
+
+// Same input always produces same hash
+const hash3 = web3.utils.sha3('hello world');
+console.log(hash1 === hash3); // true
+```
+
+---
+
+## Security Considerations
+
+<Warning>
+**Keccak vs SHA3**: The `web3_sha3` method uses Keccak-256, NOT the final NIST SHA3-256 standard. These are different algorithms and produce different outputs for the same input.
+</Warning>
+
+### Input Encoding
+
+Always ensure data is properly hex encoded:
+
+```javascript
+// Correct: hex encoded string
+const correctHash = await provider.send('web3_sha3', ['0x68656c6c6f']);
+
+// Incorrect: plain string (will be rejected)
+// const incorrectHash = await provider.send('web3_sha3', ['hello']);
+```
+
+### Use Web3 Libraries
+
+For production applications, use established libraries rather than calling `web3_sha3` directly:
+
+```javascript
+// Recommended: Use library helpers
+const hash = web3.utils.keccak256('hello world');
+
+// Less recommended: Direct RPC call
+const hashDirect = await provider.send('web3_sha3', ['0x68656c6c6f']);
+```
+
+---
+
+## Related Methods
+
+<CardGroup cols={2}>
+  <Card title="eth_sign" icon="signature" href="/api/personal-namespace#personal_sign">
+    Sign messages using account private keys
+  </Card>
+  
+  <Card title="net_version" icon="network-wired" href="/api/net-namespace#net_version">
+    Get network version information
+  </Card>
+</CardGroup>

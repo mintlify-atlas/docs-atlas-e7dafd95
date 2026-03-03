@@ -1,0 +1,686 @@
+---
+title: Troubleshooting
+description: Common issues and solutions for Viction nodes
+---
+
+## Overview
+
+This guide covers common issues encountered when operating Viction nodes and their solutions.
+
+## Node Won't Start
+
+### Issue: "Fatal: Failed to unlock account"
+
+**Error message:**
+```
+Fatal: Failed to unlock account 0x1234...5678 (could not decrypt key with given passphrase)
+```
+
+**Cause:** Incorrect password provided for account unlock
+
+**Solutions:**
+
+1. Verify password file content:
+```bash
+cat password.txt
+```
+
+2. Try unlocking interactively:
+```bash
+tomo --unlock 0x1234...5678
+# Enter password when prompted
+```
+
+3. Check keystore file exists:
+```bash
+ls -la ~/.ethereum/keystore/
+```
+
+### Issue: "Fatal: Error starting protocol stack"
+
+**Error message:**
+```
+Fatal: Error starting protocol stack: listen tcp :30303: bind: address already in use
+```
+
+**Cause:** Another process is using the P2P port
+
+**Solutions:**
+
+1. Check what's using the port:
+```bash
+lsof -i :30303
+netstat -tulpn | grep 30303
+```
+
+2. Stop the conflicting process or use a different port:
+```bash
+tomo --port 30304
+```
+
+3. Kill existing tomo process:
+```bash
+pkill tomo
+# Wait a few seconds
+tomo
+```
+
+### Issue: "Fatal: Failed to create the protocol stack"
+
+**Error message:**
+```
+Fatal: Failed to create the protocol stack: datadir already used by another process
+```
+
+**Cause:** Another tomo instance is using the same data directory or a lockfile exists from a crash
+
+**Solutions:**
+
+1. Check for running instances:
+```bash
+ps aux | grep tomo
+```
+
+2. Remove stale lock file:
+```bash
+rm ~/.ethereum/LOCK
+```
+
+3. Use a different data directory:
+```bash
+tomo --datadir /path/to/different/datadir
+```
+
+## Sync Issues
+
+### Issue: Node Not Syncing
+
+**Symptoms:**
+- Block number not increasing
+- `eth_syncing` returns false but node is behind
+- No peers connected
+
+**Solutions:**
+
+1. **Check peer count:**
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  --data '{"jsonrpc":"2.0","method":"net_peerCount","params":[],"id":1}' \
+  http://localhost:8545
+```
+
+If peer count is 0:
+
+2. **Verify network connectivity:**
+```bash
+ping 8.8.8.8  # Test internet
+tomo --bootnodes "enode://..."
+```
+
+3. **Check firewall:**
+```bash
+# Ensure port 30303 is open
+sudo ufw allow 30303/tcp
+sudo ufw allow 30303/udp
+```
+
+4. **Try different bootnodes:**
+```bash
+tomo --bootnodes "enode://node1@ip1:port,enode://node2@ip2:port"
+```
+
+5. **Clear peer database and restart:**
+```bash
+tomo removedb
+tomo
+```
+
+### Issue: Slow Sync Speed
+
+**Symptoms:**
+- Syncing takes extremely long time
+- Low block import rate
+
+**Solutions:**
+
+1. **Use fast sync mode (if starting from scratch):**
+```bash
+tomo --syncmode fast
+```
+
+2. **Increase cache size:**
+```bash
+tomo --cache 4096  # Increase cache to 4GB
+```
+
+3. **Ensure sufficient resources:**
+- Check CPU usage: `top`
+- Check disk I/O: `iostat -x 1`
+- Check available memory: `free -h`
+
+4. **Use SSD storage:**
+Move datadir to SSD if currently on HDD:
+```bash
+tomo --datadir /path/to/ssd/datadir
+```
+
+5. **Increase max peers:**
+```bash
+tomo --maxpeers 50
+```
+
+### Issue: Sync Stuck at Certain Block
+
+**Symptoms:**
+- Syncing stops at specific block height
+- Logs show repeated import attempts
+
+**Solutions:**
+
+1. **Check logs for errors:**
+```bash
+tail -f /var/log/viction/node.log | grep -i error
+```
+
+2. **Try rollback to previous block:**
+```bash
+tomo --rollback <previous_block_hash>
+```
+
+3. **Remove corrupted database and resync:**
+```bash
+tomo removedb
+tomo
+```
+
+## Account Issues
+
+### Issue: "ErrLocked - password or unlock"
+
+**Error message:**
+```
+Error: authentication needed: password or unlock
+```
+
+**Cause:** Account is locked and needs to be unlocked for signing
+
+**Solutions:**
+
+1. **Unlock account when starting node:**
+```bash
+tomo --unlock 0x1234... --password password.txt
+```
+
+2. **Unlock via console:**
+```javascript
+tomo attach
+> personal.unlockAccount("0x1234...", "password", 0)
+```
+
+### Issue: "ErrDecrypt - could not decrypt key"
+
+**Error message:**
+```
+Error: could not decrypt key with given passphrase
+```
+
+**Cause:** Wrong password for keystore file
+
+**Solutions:**
+
+1. Verify you're using the correct password
+2. Check if keystore file is corrupted:
+```bash
+cat ~/.ethereum/keystore/UTC--*
+# Should show valid JSON
+```
+3. Restore from backup if corrupted
+
+### Issue: "ErrNoMatch - no key for given address"
+
+**Error message:**
+```
+Error: no key for given address or file
+```
+
+**Cause:** Account address not found in keystore
+
+**Solutions:**
+
+1. **List available accounts:**
+```bash
+tomo account list
+```
+
+2. **Check keystore directory:**
+```bash
+ls -la ~/.ethereum/keystore/
+```
+
+3. **Verify datadir path:**
+```bash
+tomo account list --datadir /correct/path
+```
+
+4. **Import missing key:**
+```bash
+tomo account import keyfile.txt
+```
+
+## Performance Issues
+
+### Issue: High CPU Usage
+
+**Symptoms:**
+- CPU at 100% constantly
+- Node becomes unresponsive
+
+**Solutions:**
+
+1. **Check what's consuming CPU:**
+```bash
+top -p $(pgrep tomo)
+```
+
+2. **Reduce staker threads (for masternodes):**
+```bash
+tomo --mine --miner.threads 1
+```
+
+3. **Disable expensive metrics:**
+```bash
+# Remove --metrics.expensive flag
+tomo --metrics  # Without expensive flag
+```
+
+4. **Check for attack (high RPC requests):**
+```bash
+netstat -an | grep :8545 | wc -l
+```
+
+If high, restrict RPC access:
+```bash
+tomo --rpc --rpcaddr 127.0.0.1
+```
+
+### Issue: High Memory Usage
+
+**Symptoms:**
+- Node using excessive RAM
+- OOM killer terminates process
+
+**Solutions:**
+
+1. **Check memory usage:**
+```bash
+free -h
+ps aux | grep tomo
+```
+
+2. **Reduce cache size:**
+```bash
+tomo --cache 1024  # Reduce to 1GB
+```
+
+3. **Enable garbage collection:**
+```bash
+GOGC=50 tomo  # More aggressive GC
+```
+
+4. **Increase system swap:**
+```bash
+sudo fallocate -l 8G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+```
+
+### Issue: Disk Space Full
+
+**Symptoms:**
+- Database write errors
+- Node crashes with I/O errors
+
+**Solutions:**
+
+1. **Check disk usage:**
+```bash
+df -h
+du -sh ~/.ethereum
+```
+
+2. **Prune old data (if supported):**
+```bash
+tomo --gcmode archive  # For archive node
+tomo --gcmode full     # For full node (prunes old state)
+```
+
+3. **Clean up logs:**
+```bash
+sudo logrotate -f /etc/logrotate.d/viction
+```
+
+4. **Move datadir to larger disk:**
+```bash
+sudo systemctl stop viction
+rsync -av ~/.ethereum/ /new/larger/disk/ethereum/
+tomo --datadir /new/larger/disk/ethereum
+```
+
+## RPC Issues
+
+### Issue: "Connection Refused"
+
+**Error message:**
+```
+Error: connect ECONNREFUSED 127.0.0.1:8545
+```
+
+**Cause:** RPC server not running or not accessible
+
+**Solutions:**
+
+1. **Enable RPC when starting:**
+```bash
+tomo --rpc --rpcaddr 0.0.0.0 --rpcport 8545
+```
+
+2. **Check if RPC port is listening:**
+```bash
+netstat -tulpn | grep 8545
+```
+
+3. **Check firewall:**
+```bash
+sudo ufw status
+sudo ufw allow 8545/tcp
+```
+
+### Issue: "Method Not Allowed"
+
+**Error message:**
+```
+Error: The method eth_sendTransaction is not available
+```
+
+**Cause:** Requested API method not enabled
+
+**Solutions:**
+
+1. **Enable required APIs:**
+```bash
+tomo --rpc --rpcapi "eth,net,web3,personal,admin"
+```
+
+<Warning>
+Only enable APIs you need. Personal and admin APIs should not be exposed publicly.
+</Warning>
+
+### Issue: "Too Many Requests"
+
+**Symptoms:**
+- RPC calls failing or timing out
+- Slow response times
+
+**Solutions:**
+
+1. **Implement rate limiting** at reverse proxy level (nginx):
+```nginx
+limit_req_zone $binary_remote_addr zone=rpc:10m rate=10r/s;
+
+location / {
+    limit_req zone=rpc burst=20;
+    proxy_pass http://localhost:8545;
+}
+```
+
+2. **Increase timeout:**
+```bash
+tomo --rpc --rpc.timeout 30
+```
+
+## Network Issues
+
+### Issue: No Peers Connecting
+
+**Symptoms:**
+- Peer count stays at 0
+- Node isolated from network
+
+**Solutions:**
+
+1. **Check NAT settings:**
+```bash
+tomo --nat extip:YOUR.PUBLIC.IP.ADDRESS
+```
+
+2. **Manually add peers:**
+```bash
+tomo attach
+> admin.addPeer("enode://...@ip:port")
+```
+
+3. **Configure static nodes** in `~/.ethereum/static-nodes.json`:
+```json
+[
+  "enode://pubkey@ip:30303"
+]
+```
+
+4. **Disable discovery temporarily:**
+```bash
+tomo --nodiscover --bootnodes "enode://..."
+```
+
+### Issue: Peers Keep Disconnecting
+
+**Symptoms:**
+- Peers connect then quickly disconnect
+- Unstable peer count
+
+**Solutions:**
+
+1. **Check network stability:**
+```bash
+ping -c 100 8.8.8.8
+mtr google.com
+```
+
+2. **Check system time:**
+```bash
+timedatectl status
+# Ensure NTP is synchronized
+sudo timedatectl set-ntp true
+```
+
+3. **Increase max pending peers:**
+```bash
+tomo --maxpendpeers 50
+```
+
+## Masternode Issues
+
+### Issue: Not Signing Blocks
+
+**Symptoms:**
+- Registered masternode not producing blocks
+- Missing assigned slots
+
+**Solutions:**
+
+1. **Verify masternode registration:**
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  --data '{"jsonrpc":"2.0","method":"eth_coinbase","params":[],"id":1}' \
+  http://localhost:8545
+```
+
+2. **Check account is unlocked:**
+```bash
+tomo --unlock <masternode_address> --password password.txt
+```
+
+3. **Verify staking is enabled:**
+```bash
+tomo --mine --miner.threads 1
+```
+
+4. **Check logs for errors:**
+```bash
+grep -i "mining\|seal" /var/log/viction/node.log
+```
+
+### Issue: Masternode Penalties
+
+**Symptoms:**
+- Receiving penalties for missed blocks
+- Rewards lower than expected
+
+**Solutions:**
+
+1. **Ensure high uptime:**
+   - Use monitoring and auto-restart
+   - Implement failover
+
+2. **Optimize performance:**
+   - Use SSD storage
+   - Sufficient RAM (8GB+)
+   - Good network connectivity
+
+3. **Monitor continuously:**
+```bash
+watch -n 10 'curl -s -X POST -H "Content-Type: application/json" \
+  --data '"'"'{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}'"'"' \
+  http://localhost:8545'
+```
+
+## Database Issues
+
+### Issue: "Database Corruption"
+
+**Error message:**
+```
+Fatal: Failed to open database: corrupted database
+```
+
+**Solutions:**
+
+1. **Try database repair (if available):**
+```bash
+tomo db inspect
+tomo db check
+```
+
+2. **Remove and resync:**
+```bash
+cp -r ~/.ethereum/keystore /tmp/keystore-backup
+tomo removedb
+cp -r /tmp/keystore-backup ~/.ethereum/keystore
+tomo
+```
+
+3. **Restore from snapshot:**
+```bash
+# Download trusted snapshot
+wget https://snapshot.viction.xyz/latest.tar.gz
+tar -xzf latest.tar.gz -C ~/.ethereum/
+tomo
+```
+
+## Logging and Debugging
+
+### Enable Debug Logging
+
+```bash
+tomo --verbosity 5  # Maximum verbosity
+```
+
+Verbosity levels:
+- 0: Silent
+- 1: Error
+- 2: Warn
+- 3: Info (default)
+- 4: Debug
+- 5: Trace
+
+### Increase Log Detail for Specific Modules
+
+```bash
+tomo --vmodule "p2p=5,eth=4"
+```
+
+### Debug Console
+
+Attach to running node for interactive debugging:
+
+```bash
+tomo attach
+> debug.verbosity(5)
+> eth.syncing
+> net.peerCount
+> admin.peers
+```
+
+## Getting Help
+
+### Collect Debug Information
+
+When reporting issues, include:
+
+1. **Node version:**
+```bash
+tomo version
+```
+
+2. **System information:**
+```bash
+uname -a
+cat /etc/os-release
+```
+
+3. **Recent logs:**
+```bash
+tail -n 100 /var/log/viction/node.log
+```
+
+4. **Configuration:**
+```bash
+tomo dumpconfig
+```
+
+5. **Node status:**
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  --data '{"jsonrpc":"2.0","method":"eth_syncing","params":[],"id":1}' \
+  http://localhost:8545
+```
+
+### Community Resources
+
+- [Viction Documentation](https://docs.viction.xyz)
+- [GitHub Issues](https://github.com/BuildOnViction/tomochain/issues)
+- [Viction Forum](https://forum.viction.xyz)
+- [Discord Community](https://discord.gg/viction)
+- [Telegram](https://t.me/viction)
+
+### Emergency Procedures
+
+For critical issues:
+
+1. **Stop the node gracefully:**
+```bash
+kill -INT $(pgrep tomo)  # SIGINT for graceful shutdown
+```
+
+2. **Backup critical data:**
+```bash
+tar -czf emergency-backup-$(date +%Y%m%d).tar.gz ~/.ethereum/keystore
+```
+
+3. **Check system health:**
+```bash
+dmesg | tail
+journalctl -xe
+```
+
+4. **Contact support with all debug information**

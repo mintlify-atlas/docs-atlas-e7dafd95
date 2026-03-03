@@ -1,0 +1,316 @@
+---
+title: "TomoX DEX Protocol"
+description: "Decentralized exchange protocol for trustless token trading on Viction"
+---
+
+## Overview
+
+TomoX is Viction's decentralized exchange protocol that enables permissionless and trustless token trading directly on the blockchain. It provides a secure, efficient orderbook-based trading system integrated at the protocol level.
+
+## Key Features
+
+### On-Chain Order Matching
+
+TomoX processes all orders on-chain through the trading state database, ensuring transparency and security:
+
+- **Order Processing**: Orders are matched and executed in blocks
+- **State Management**: Trading state is maintained in a dedicated state trie
+- **Transaction Finality**: All trades benefit from Viction's 2-second block time
+
+### Relayer Network
+
+Relayers operate decentralized exchanges by:
+
+- Maintaining order books for trading pairs
+- Collecting trade fees (0-10% configurable)
+- Providing user interfaces and APIs
+- Depositing collateral to ensure honest operation
+
+## Architecture
+
+### Trading State Database
+
+The TomoX protocol maintains a separate state database for trading operations:
+
+```go
+type TomoX struct {
+    db         tomoxDAO.TomoXDAO
+    StateCache tradingstate.Database
+    orderNonce map[common.Address]*big.Int
+    Triegc     *prque.Prque
+}
+```
+
+Source: `tomox/tomox.go:52`
+
+### Order Structure
+
+Orders contain all necessary information for matching:
+
+```go
+type OrderItem struct {
+    Nonce           *big.Int
+    Quantity        *big.Int
+    Price           *big.Int
+    ExchangeAddress common.Address
+    UserAddress     common.Address
+    BaseToken       common.Address
+    QuoteToken      common.Address
+    Status          string
+    Side            string  // "BUY" or "SELL"
+    Type            string  // "LIMIT" or "MARKET"
+    Hash            common.Hash
+    OrderID         uint64
+    Signature       *Signature
+}
+```
+
+Source: `tomox/order_processor.go`
+
+## Order Processing Flow
+
+### 1. Order Submission
+
+Users submit signed order transactions to the network:
+
+- Orders are signed with the user's private key
+- Each order has a unique nonce to prevent replay attacks
+- Orders enter the pending transaction pool
+
+### 2. Order Matching
+
+The protocol matches orders during block processing:
+
+```go
+func (tomox *TomoX) ProcessOrderPending(
+    header *types.Header,
+    coinbase common.Address,
+    chain consensus.ChainContext,
+    pending map[common.Address]types.OrderTransactions,
+    statedb *state.StateDB,
+    tomoXstatedb *tradingstate.TradingStateDB,
+) ([]tradingstate.TxDataMatch, map[common.Hash]tradingstate.MatchingResult)
+```
+
+Source: `tomox/tomox.go:157`
+
+### 3. Trade Execution
+
+When orders match:
+
+- Tokens are transferred between buyer and seller
+- Trade fees are collected by the relayer
+- Order status is updated (Filled, PartialFilled, or Rejected)
+- Trade records are stored on-chain
+
+## Order Types
+
+### Limit Orders
+
+Execute at a specific price or better:
+
+- Remain in the order book until filled or cancelled
+- Can be partially filled
+- Status: Open → PartialFilled → Filled
+
+### Market Orders
+
+Execute immediately at the best available price:
+
+- Filled against existing limit orders
+- May result in multiple trades at different prices
+- Status: Filled or Rejected if no liquidity
+
+## Price Discovery
+
+TomoX maintains price information for trading pairs:
+
+```go
+// Get average price from last epoch
+func (tomox *TomoX) GetAveragePriceLastEpoch(
+    chain consensus.ChainContext,
+    statedb *state.StateDB,
+    tradingStateDb *tradingstate.TradingStateDB,
+    baseToken common.Address,
+    quoteToken common.Address,
+) (*big.Int, error)
+```
+
+Source: `tomox/tomox.go:267`
+
+Prices are tracked per epoch and used for:
+
+- Collateral valuation in TomoX Lending
+- Fee calculations
+- Token conversions
+
+## Relayer Registration
+
+To operate a relayer, you must register through the smart contract:
+
+### Registration Contract
+
+```solidity
+contract RelayerRegistration {
+    struct Relayer {
+        uint256 _deposit;
+        uint16 _tradeFee;
+        address[] _fromTokens;
+        address[] _toTokens;
+        uint _index;
+        address _owner;
+    }
+
+    function register(
+        address coinbase,
+        uint16 tradeFee,
+        address[] memory fromTokens,
+        address[] memory toTokens
+    ) public payable;
+}
+```
+
+Source: `contracts/tomox/contract/Registration.sol:9`
+
+### Requirements
+
+- **Minimum Deposit**: Collateral in VIC tokens
+- **Trade Fee**: 0-10% (0-1000 basis points)
+- **Token Pairs**: Must include TOMO pairs for price discovery
+- **Maximum Pairs**: Configurable limit per relayer
+
+### Managing a Relayer
+
+Relayer owners can:
+
+- **Update**: Change trading pairs and fees
+- **Deposit More**: Increase collateral
+- **Transfer**: Change ownership
+- **Resign**: Request to close (4-week waiting period)
+- **Refund**: Withdraw collateral after resignation period
+
+## SDK Node Integration
+
+SDK nodes provide enhanced functionality for relayers:
+
+```go
+func (tomox *TomoX) SyncDataToSDKNode(
+    takerOrderInTx *tradingstate.OrderItem,
+    txHash common.Hash,
+    txMatchTime time.Time,
+    statedb *state.StateDB,
+    trades []map[string]string,
+    rejectedOrders []*tradingstate.OrderItem,
+    dirtyOrderCount *uint64,
+) error
+```
+
+Source: `tomox/tomox.go:317`
+
+SDK nodes use MongoDB to provide:
+
+- Real-time order book data
+- Trade history
+- Order status tracking
+- API endpoints for frontend applications
+
+## API Access
+
+The TomoX RPC API provides protocol information:
+
+```go
+type PublicTomoXAPI struct {
+    t        *TomoX
+    mu       sync.Mutex
+    lastUsed map[string]time.Time
+}
+
+func (api *PublicTomoXAPI) Version(ctx context.Context) string {
+    return ProtocolVersionStr // "1.0"
+}
+```
+
+Source: `tomox/api.go:23`
+
+## Order Book Structure
+
+Order books are identified by trading pair hashes:
+
+- **Base Token**: The token being traded (e.g., BTC)
+- **Quote Token**: The token used for pricing (e.g., VIC)
+- **Order Book Hash**: `Keccak256(baseToken + quoteToken)`
+
+Each order book maintains:
+
+- Buy orders (bids) sorted by price descending
+- Sell orders (asks) sorted by price ascending
+- Price-time priority matching
+
+## Token Listing
+
+Before trading, tokens must be listed:
+
+```solidity
+contract TOMOXListing {
+    function apply(address token) public payable {
+        require(msg.value == 1000 ether);
+        foundation.transfer(msg.value);
+        
+        _tokens.push(token);
+        tokensState[token] = TokenState({
+            isActive: true
+        });
+    }
+}
+```
+
+Source: `contracts/tomox/contract/TOMOXListing.sol:27`
+
+**Listing Fee**: 1000 VIC (transferred to foundation)
+
+## Performance
+
+- **Block Time**: 2 seconds
+- **Maximum Orders per Block**: 1000
+- **Order Matching**: O(n log n) for price-time priority
+- **State Updates**: Optimized with caching (1024 entry LRU cache)
+
+<Accordion title="How does TomoX differ from traditional DEXs?">
+TomoX is integrated at the protocol level, not as a smart contract. This provides:
+- Lower gas costs (orders don't execute EVM bytecode)
+- Faster execution (native code in the consensus layer)
+- Better security (no smart contract vulnerabilities)
+- Direct state access without contract overhead
+</Accordion>
+
+<Accordion title="What happens if a relayer goes offline?">
+Orders and trades are stored in the blockchain state, not on the relayer. If a relayer goes offline:
+- Your orders remain in the protocol state
+- You can cancel orders directly through another interface
+- Your funds are never held by the relayer
+- You can access your trading history through any SDK node
+</Accordion>
+
+<Accordion title="How are trade disputes resolved?">
+All trades are executed on-chain with cryptographic signatures:
+- Every order is signed by the user's private key
+- All matching logic is deterministic and verifiable
+- Trade execution is part of consensus
+- No disputes are possible as everything is cryptographically provable
+</Accordion>
+
+<Accordion title="Can I run my own relayer?">
+Yes, anyone can run a relayer by:
+1. Meeting the minimum deposit requirement
+2. Registering through the RelayerRegistration contract
+3. Running relayer software (frontend + SDK node)
+4. Configuring trading pairs and fees
+
+You don't need permission and you control your relayer completely.
+</Accordion>
+
+## See Also
+
+- [TomoX Lending](/features/tomox-lending) - Lending protocol built on TomoX
+- [TRC21 Tokens](/features/trc21-tokens) - Gasless token standard
+- [Smart Contracts](/features/smart-contracts) - EVM compatibility

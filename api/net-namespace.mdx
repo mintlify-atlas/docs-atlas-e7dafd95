@@ -1,0 +1,219 @@
+---
+title: "net Namespace"
+description: "Network-related RPC methods for connectivity and peer information"
+---
+
+## Overview
+
+The `net` namespace provides methods for querying network connectivity and peer information.
+
+## Methods
+
+### net_version
+
+Returns the current network ID.
+
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  --data '{"jsonrpc":"2.0","method":"net_version","params":[],"id":1}' \
+  https://rpc.viction.xyz
+```
+
+<ResponseField name="result" type="string">
+  Network ID as a string
+  - "88" for Viction mainnet
+  - "89" for Viction testnet
+</ResponseField>
+
+**Example Response:**
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": "88"
+}
+```
+
+<Note>
+The network ID is returned as a decimal string, not hexadecimal. This differs from `eth_chainId` which returns hexadecimal.
+</Note>
+
+---
+
+### net_listening
+
+Returns true if the client is actively listening for network connections.
+
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  --data '{"jsonrpc":"2.0","method":"net_listening","params":[],"id":1}' \
+  https://rpc.viction.xyz
+```
+
+<ResponseField name="result" type="boolean">
+  true if listening, false otherwise
+</ResponseField>
+
+**Example Response:**
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": true
+}
+```
+
+---
+
+### net_peerCount
+
+Returns the number of peers currently connected to the client.
+
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  --data '{"jsonrpc":"2.0","method":"net_peerCount","params":[],"id":1}' \
+  https://rpc.viction.xyz
+```
+
+<ResponseField name="result" type="string">
+  Number of connected peers as a hexadecimal string
+</ResponseField>
+
+**Example Response:**
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": "0x19"
+}
+```
+
+In the example above, `0x19` (25 in decimal) peers are connected.
+
+---
+
+## Network Identifiers
+
+### Viction Mainnet
+- **Network ID**: 88
+- **Chain ID**: 0x58 (88 in hex)
+- **RPC Endpoint**: https://rpc.viction.xyz
+
+### Viction Testnet
+- **Network ID**: 89
+- **Chain ID**: 0x59 (89 in hex)
+- **RPC Endpoint**: https://rpc-testnet.viction.xyz
+
+---
+
+## Usage Examples
+
+### JavaScript (Web3.js)
+
+```javascript
+const Web3 = require('web3');
+const web3 = new Web3('https://rpc.viction.xyz');
+
+// Get network version
+web3.eth.net.getId()
+  .then(id => console.log('Network ID:', id));
+
+// Check if node is listening
+web3.eth.net.isListening()
+  .then(listening => console.log('Listening:', listening));
+
+// Get peer count
+web3.eth.net.getPeerCount()
+  .then(count => console.log('Peer count:', count));
+```
+
+### JavaScript (Ethers.js)
+
+```javascript
+const { JsonRpcProvider } = require('ethers');
+const provider = new JsonRpcProvider('https://rpc.viction.xyz');
+
+// Get network
+provider.getNetwork()
+  .then(network => {
+    console.log('Network ID:', network.chainId);
+  });
+
+// Check peer count
+provider.send('net_peerCount', [])
+  .then(count => console.log('Peer count:', parseInt(count, 16)));
+```
+
+### Python (Web3.py)
+
+```python
+from web3 import Web3
+
+w3 = Web3(Web3.HTTPProvider('https://rpc.viction.xyz'))
+
+# Get network version
+network_id = w3.net.version
+print(f'Network ID: {network_id}')
+
+# Check if node is listening
+listening = w3.net.listening
+print(f'Listening: {listening}')
+
+# Get peer count
+peer_count = w3.net.peer_count
+print(f'Peer count: {peer_count}')
+```
+
+---
+
+## Network Diagnostics
+
+These methods are useful for:
+
+<CardGroup cols={2}>
+  <Card title="Network Detection" icon="network-wired">
+    Identify which Viction network (mainnet/testnet) you're connected to
+  </Card>
+  
+  <Card title="Connection Health" icon="heartbeat">
+    Verify your node is actively listening for connections
+  </Card>
+  
+  <Card title="Peer Monitoring" icon="users">
+    Monitor the number of connected peers for network health
+  </Card>
+  
+  <Card title="Sync Verification" icon="sync">
+    Ensure your node is properly connected to the network
+  </Card>
+</CardGroup>
+
+---
+
+## Troubleshooting
+
+### Low Peer Count
+
+If `net_peerCount` returns a very low number (less than 5):
+
+1. Check firewall settings - ensure P2P port (default 30303) is open
+2. Verify network connectivity
+3. Check if bootnodes are configured correctly
+4. Ensure sufficient disk space and system resources
+
+### Not Listening
+
+If `net_listening` returns false:
+
+1. Check if the node is fully started
+2. Verify the P2P port configuration
+3. Check for port conflicts
+4. Review node logs for errors
+
+### Network Mismatch
+
+If `net_version` returns unexpected value:
+
+1. Verify you're connecting to the correct RPC endpoint
+2. Check if the node is syncing the intended network
+3. Review genesis configuration for custom networks

@@ -1,0 +1,468 @@
+---
+title: "personal Namespace"
+description: "Account management RPC methods for wallet operations and signing"
+---
+
+<Warning>
+The `personal` namespace methods manage private keys and should only be used on trusted nodes. Never use these methods over untrusted connections or expose them publicly.
+</Warning>
+
+## Overview
+
+The `personal` namespace provides methods for managing accounts, signing messages, and handling wallet operations.
+
+## Account Management
+
+### personal_newAccount
+
+Creates a new account and returns its address.
+
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  --data '{"jsonrpc":"2.0","method":"personal_newAccount","params":["your-password"],"id":1}' \
+  http://localhost:8545
+```
+
+<ParamField path="params[0]" type="string" required>
+  Password to encrypt the account
+</ParamField>
+
+<ResponseField name="result" type="string">
+  The address of the newly created account
+</ResponseField>
+
+**Example Response:**
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb"
+}
+```
+
+---
+
+### personal_listAccounts
+
+Returns a list of addresses owned by the client.
+
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  --data '{"jsonrpc":"2.0","method":"personal_listAccounts","params":[],"id":1}' \
+  http://localhost:8545
+```
+
+<ResponseField name="result" type="array">
+  Array of account addresses
+</ResponseField>
+
+**Example Response:**
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": [
+    "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb",
+    "0x1234567890123456789012345678901234567890"
+  ]
+}
+```
+
+---
+
+### personal_unlockAccount
+
+Unlocks an account for a specified duration.
+
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  --data '{"jsonrpc":"2.0","method":"personal_unlockAccount","params":["0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb","password",300],"id":1}' \
+  http://localhost:8545
+```
+
+<ParamField path="params[0]" type="string" required>
+  Address of the account to unlock
+</ParamField>
+
+<ParamField path="params[1]" type="string" required>
+  Password to decrypt the account
+</ParamField>
+
+<ParamField path="params[2]" type="number">
+  Duration in seconds to keep the account unlocked (default: 300)
+</ParamField>
+
+<ResponseField name="result" type="boolean">
+  true if the account was successfully unlocked
+</ResponseField>
+
+<Warning>
+Unlocking accounts on production nodes is a security risk. Use signed transactions instead.
+</Warning>
+
+---
+
+### personal_lockAccount
+
+Locks an account, removing the decrypted private key from memory.
+
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  --data '{"jsonrpc":"2.0","method":"personal_lockAccount","params":["0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb"],"id":1}' \
+  http://localhost:8545
+```
+
+<ParamField path="params[0]" type="string" required>
+  Address of the account to lock
+</ParamField>
+
+<ResponseField name="result" type="boolean">
+  true if the account was successfully locked
+</ResponseField>
+
+---
+
+## Key Import
+
+### personal_importRawKey
+
+Imports a private key and creates a new account.
+
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  --data '{"jsonrpc":"2.0","method":"personal_importRawKey","params":["0x1234...","password"],"id":1}' \
+  http://localhost:8545
+```
+
+<ParamField path="params[0]" type="string" required>
+  Private key (hex encoded, 64 characters without 0x prefix)
+</ParamField>
+
+<ParamField path="params[1]" type="string" required>
+  Password to encrypt the account
+</ParamField>
+
+<ResponseField name="result" type="string">
+  Address of the imported account
+</ResponseField>
+
+<Warning>
+Never share your private keys. Only import keys on secure, trusted nodes.
+</Warning>
+
+---
+
+## Wallet Operations
+
+### personal_listWallets
+
+Returns a list of wallets managed by the node.
+
+<ResponseField name="result" type="array">
+  Array of wallet objects
+  <Expandable title="wallet properties">
+    <ResponseField name="url" type="string">
+      Wallet URL identifier
+    </ResponseField>
+    <ResponseField name="status" type="string">
+      Wallet status (e.g., "Locked", "Unlocked")
+    </ResponseField>
+    <ResponseField name="accounts" type="array">
+      Array of account objects in the wallet
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+---
+
+### personal_openWallet
+
+Opens a hardware wallet.
+
+<ParamField path="params[0]" type="string" required>
+  Wallet URL (e.g., "ledger://", "trezor://")
+</ParamField>
+
+<ParamField path="params[1]" type="string">
+  Passphrase (optional, required for some hardware wallets)
+</ParamField>
+
+---
+
+### personal_deriveAccount
+
+Derives a new account from a hardware wallet.
+
+<ParamField path="params[0]" type="string" required>
+  Wallet URL
+</ParamField>
+
+<ParamField path="params[1]" type="string" required>
+  Derivation path (e.g., "m/44'/60'/0'/0/0")
+</ParamField>
+
+<ParamField path="params[2]" type="boolean">
+  Whether to pin the derived account
+</ParamField>
+
+<ResponseField name="result" type="object">
+  Derived account information
+</ResponseField>
+
+---
+
+## Transaction Signing
+
+### personal_sendTransaction
+
+Sends a transaction from an unlocked account.
+
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  --data '{"jsonrpc":"2.0","method":"personal_sendTransaction","params":[{"from":"0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb","to":"0x1234567890123456789012345678901234567890","value":"0xde0b6b3a7640000"},"password"],"id":1}' \
+  http://localhost:8545
+```
+
+<ParamField path="params[0]" type="object" required>
+  Transaction object
+  <Expandable title="properties">
+    <ParamField path="from" type="string" required>
+      Sender address
+    </ParamField>
+    <ParamField path="to" type="string" required>
+      Recipient address
+    </ParamField>
+    <ParamField path="value" type="string">
+      Value to transfer in wei (hex)
+    </ParamField>
+    <ParamField path="gas" type="string">
+      Gas limit (hex)
+    </ParamField>
+    <ParamField path="gasPrice" type="string">
+      Gas price in wei (hex)
+    </ParamField>
+    <ParamField path="data" type="string">
+      Transaction data (hex)
+    </ParamField>
+    <ParamField path="nonce" type="string">
+      Transaction nonce (hex)
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="params[1]" type="string" required>
+  Account password
+</ParamField>
+
+<ResponseField name="result" type="string">
+  Transaction hash
+</ResponseField>
+
+---
+
+### personal_signTransaction
+
+Signs a transaction without sending it.
+
+<ParamField path="params[0]" type="object" required>
+  Transaction object (same structure as personal_sendTransaction)
+</ParamField>
+
+<ParamField path="params[1]" type="string" required>
+  Account password
+</ParamField>
+
+<ResponseField name="result" type="object">
+  Signed transaction
+  <Expandable title="properties">
+    <ResponseField name="raw" type="string">
+      RLP-encoded signed transaction (hex)
+    </ResponseField>
+    <ResponseField name="tx" type="object">
+      Transaction object with signature fields (r, s, v)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+---
+
+## Message Signing
+
+### personal_sign
+
+Signs arbitrary data with an account.
+
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  --data '{"jsonrpc":"2.0","method":"personal_sign","params":["0x48656c6c6f20576f726c64","0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb","password"],"id":1}' \
+  http://localhost:8545
+```
+
+<ParamField path="params[0]" type="string" required>
+  Data to sign (hex encoded)
+</ParamField>
+
+<ParamField path="params[1]" type="string" required>
+  Account address
+</ParamField>
+
+<ParamField path="params[2]" type="string" required>
+  Account password
+</ParamField>
+
+<ResponseField name="result" type="string">
+  65-byte signature (hex encoded)
+</ResponseField>
+
+**Example Response:**
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": "0x1234567890abcdef..."
+}
+```
+
+<Note>
+The signature includes the prefix "\x19Ethereum Signed Message:\n" + message length before hashing, following EIP-191.
+</Note>
+
+---
+
+### personal_ecRecover
+
+Recovers the address that signed a message.
+
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  --data '{"jsonrpc":"2.0","method":"personal_ecRecover","params":["0x48656c6c6f20576f726c64","0x1234567890abcdef..."],"id":1}' \
+  http://localhost:8545
+```
+
+<ParamField path="params[0]" type="string" required>
+  Original message (hex encoded)
+</ParamField>
+
+<ParamField path="params[1]" type="string" required>
+  Signature (65 bytes, hex encoded)
+</ParamField>
+
+<ResponseField name="result" type="string">
+  Address that signed the message
+</ResponseField>
+
+---
+
+## Usage Examples
+
+### JavaScript (Web3.js)
+
+```javascript
+const Web3 = require('web3');
+const web3 = new Web3('http://localhost:8545');
+
+// Create new account
+const newAccount = await web3.eth.personal.newAccount('password');
+console.log('New account:', newAccount);
+
+// List accounts
+const accounts = await web3.eth.personal.getAccounts();
+console.log('Accounts:', accounts);
+
+// Sign message
+const signature = await web3.eth.personal.sign(
+  'Hello World',
+  accounts[0],
+  'password'
+);
+console.log('Signature:', signature);
+
+// Recover signer
+const signer = await web3.eth.personal.ecRecover(
+  'Hello World',
+  signature
+);
+console.log('Signer:', signer);
+
+// Send transaction
+const txHash = await web3.eth.personal.sendTransaction({
+  from: accounts[0],
+  to: '0x1234567890123456789012345678901234567890',
+  value: web3.utils.toWei('1', 'ether')
+}, 'password');
+console.log('Transaction:', txHash);
+```
+
+### Python (Web3.py)
+
+```python
+from web3 import Web3
+
+w3 = Web3(Web3.HTTPProvider('http://localhost:8545'))
+
+# Create new account
+new_account = w3.geth.personal.new_account('password')
+print(f'New account: {new_account}')
+
+# List accounts
+accounts = w3.geth.personal.list_accounts()
+print(f'Accounts: {accounts}')
+
+# Sign message
+message = 'Hello World'
+signature = w3.geth.personal.sign_typed_data(
+    accounts[0],
+    message,
+    'password'
+)
+print(f'Signature: {signature.hex()}')
+
+# Send transaction
+tx_hash = w3.geth.personal.send_transaction({
+    'from': accounts[0],
+    'to': '0x1234567890123456789012345678901234567890',
+    'value': w3.toWei(1, 'ether')
+}, 'password')
+print(f'Transaction: {tx_hash.hex()}')
+```
+
+---
+
+## Security Best Practices
+
+<Warning>
+**Critical Security Considerations**
+
+1. Never expose personal namespace methods over public RPC endpoints
+2. Always use strong, unique passwords for accounts
+3. Never share private keys or passwords
+4. Use hardware wallets for production environments
+5. Prefer signing transactions offline and using eth_sendRawTransaction
+</Warning>
+
+### Recommended Approach
+
+Instead of using `personal_sendTransaction`, consider:
+
+```javascript
+// Better: Sign offline and send raw transaction
+const signedTx = await web3.eth.accounts.signTransaction({
+  to: '0x1234567890123456789012345678901234567890',
+  value: web3.utils.toWei('1', 'ether'),
+  gas: 21000
+}, privateKey);
+
+const receipt = await web3.eth.sendSignedTransaction(
+  signedTx.rawTransaction
+);
+```
+
+### Account Storage
+
+Accounts created with `personal_newAccount` are stored encrypted in the keystore directory:
+
+```
+~/.ethereum/keystore/  (default location)
+```
+
+Backup these files securely and never lose your password.

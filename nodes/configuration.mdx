@@ -1,0 +1,735 @@
+---
+title: Node Configuration
+description: Complete reference for all Viction node configuration options and command-line flags
+---
+
+This page provides a comprehensive reference for all configuration options available when running a Viction node. All flags are defined in `cmd/utils/flags.go` and `cmd/tomo/main.go`.
+
+## General Settings
+
+### Identity and Network
+
+<ResponseField name="identity" type="string">
+  Custom node name that appears in network stats and peer lists
+  
+  ```bash
+  --identity "my-viction-node"
+  ```
+</ResponseField>
+
+<ResponseField name="networkid" type="number" default="88">
+  Network identifier:
+  - `88`: Viction Mainnet
+  - `89`: Viction Testnet
+  
+  ```bash
+  --networkid 88
+  ```
+</ResponseField>
+
+<ResponseField name="tomo-testnet" type="boolean">
+  Connect to the Viction testnet. When enabled, automatically uses testnet bootnodes and genesis.
+  
+  ```bash
+  --tomo-testnet
+  ```
+</ResponseField>
+
+### Data Storage
+
+<ResponseField name="datadir" type="string" required>
+  Directory for blockchain data and keystore. Stores:
+  - Block data
+  - State database
+  - Transaction history
+  - Node configuration
+  
+  ```bash
+  --datadir /path/to/data
+  ```
+</ResponseField>
+
+<ResponseField name="keystore" type="string">
+  Directory for account keystore files. If not specified, uses `{datadir}/keystore`.
+  
+  ```bash
+  --keystore /path/to/keystore
+  ```
+</ResponseField>
+
+<ResponseField name="syncmode" type="string" default="full">
+  Blockchain synchronization mode:
+  - `fast`: Download blocks and verify recent state only
+  - `full`: Download and validate all blocks from genesis
+  - `light`: Download only headers (not recommended for production)
+  
+  ```bash
+  --syncmode "full"
+  ```
+</ResponseField>
+
+<ResponseField name="gcmode" type="string" default="full">
+  Blockchain garbage collection mode:
+  - `full`: Prune old state data to save disk space
+  - `archive`: Keep all historical state data
+  
+  ```bash
+  --gcmode "full"
+  ```
+  
+  <Warning>
+    Archive mode requires significantly more disk space but is required for certain operations like `--store-reward`.
+  </Warning>
+</ResponseField>
+
+## Account Management
+
+<ResponseField name="unlock" type="string" required>
+  Comma-separated list of accounts to unlock. Use account index (0 for first account) or full address.
+  
+  ```bash
+  --unlock 0
+  --unlock "0x1234567890123456789012345678901234567890"
+  --unlock "0,1,2"  # Unlock multiple accounts
+  ```
+</ResponseField>
+
+<ResponseField name="password" type="string">
+  Path to password file for non-interactive account unlocking. File should contain passwords, one per line.
+  
+  ```bash
+  --password /path/to/password.txt
+  ```
+</ResponseField>
+
+## Mining / Staking Configuration
+
+<ResponseField name="mine" type="boolean">
+  Enable staking/mining mode. Node will participate in block creation if it's a valid masternode.
+  
+  ```bash
+  --mine
+  ```
+</ResponseField>
+
+<ResponseField name="minerthreads" type="number" default="1">
+  Number of CPU threads to use for staking operations.
+  
+  ```bash
+  --minerthreads 2
+  ```
+</ResponseField>
+
+<ResponseField name="etherbase" type="string" default="0">
+  Public address for block mining rewards. Default "0" means use first account.
+  
+  ```bash
+  --etherbase "0x1234567890123456789012345678901234567890"
+  ```
+</ResponseField>
+
+<ResponseField name="gasprice" type="number" default="250000000">
+  Minimum gas price (in wei) to accept for mining a transaction.
+  
+  ```bash
+  --gasprice 250000000  # 0.25 Gwei
+  ```
+</ResponseField>
+
+<ResponseField name="targetgaslimit" type="number" default="30000000">
+  Target gas limit for mined blocks.
+  
+  ```bash
+  --targetgaslimit 30000000
+  ```
+</ResponseField>
+
+## Network Configuration
+
+### P2P Settings
+
+<ResponseField name="port" type="number" default="30303">
+  P2P network listening port for peer connections.
+  
+  ```bash
+  --port 30303
+  ```
+  
+  <Warning>
+    This port must be accessible from the internet for proper peer connectivity.
+  </Warning>
+</ResponseField>
+
+<ResponseField name="maxpeers" type="number" default="25">
+  Maximum number of network peers. Set to 0 to disable P2P networking.
+  
+  ```bash
+  --maxpeers 25
+  ```
+</ResponseField>
+
+<ResponseField name="maxpendpeers" type="number" default="0">
+  Maximum number of pending connection attempts. Uses default if set to 0.
+  
+  ```bash
+  --maxpendpeers 10
+  ```
+</ResponseField>
+
+<ResponseField name="nat" type="string" default="any">
+  NAT port mapping mechanism:
+  - `any`: Automatic NAT detection
+  - `none`: Disable NAT
+  - `upnp`: Use UPnP
+  - `pmp`: Use NAT-PMP
+  - `extip:<IP>`: Explicit external IP address
+  
+  ```bash
+  --nat "extip:203.0.113.1"
+  ```
+</ResponseField>
+
+<ResponseField name="bootnodes" type="string">
+  Comma-separated enode URLs for P2P discovery bootstrap. Leave empty to use default mainnet/testnet bootnodes.
+  
+  ```bash
+  --bootnodes "enode://abc123@1.2.3.4:30303,enode://def456@5.6.7.8:30303"
+  ```
+</ResponseField>
+
+<ResponseField name="nodiscover" type="boolean">
+  Disable peer discovery mechanism. Only manually added peers will connect.
+  
+  ```bash
+  --nodiscover
+  ```
+</ResponseField>
+
+<ResponseField name="nodekey" type="string">
+  Path to P2P node key file.
+  
+  ```bash
+  --nodekey /path/to/nodekey
+  ```
+</ResponseField>
+
+<ResponseField name="nodekeyhex" type="string">
+  P2P node key as hex string (for testing only).
+  
+  ```bash
+  --nodekeyhex "0x1234567890abcdef..."
+  ```
+</ResponseField>
+
+## RPC Configuration
+
+### HTTP-RPC
+
+<ResponseField name="rpc" type="boolean">
+  Enable the HTTP-RPC server.
+  
+  ```bash
+  --rpc
+  ```
+</ResponseField>
+
+<ResponseField name="rpcaddr" type="string" default="127.0.0.1">
+  HTTP-RPC server listening interface. Use "0.0.0.0" to accept external connections.
+  
+  ```bash
+  --rpcaddr 0.0.0.0
+  ```
+  
+  <Warning>
+    Exposing RPC to the internet can be dangerous. Use firewall rules and authentication.
+  </Warning>
+</ResponseField>
+
+<ResponseField name="rpcport" type="number" default="8545">
+  HTTP-RPC server listening port.
+  
+  ```bash
+  --rpcport 8545
+  ```
+</ResponseField>
+
+<ResponseField name="rpcapi" type="string">
+  Comma-separated list of APIs to offer over HTTP-RPC:
+  - `eth`: Ethereum JSON-RPC
+  - `net`: Network information
+  - `web3`: Web3 utilities
+  - `posv`: Viction consensus data
+  - `debug`: Debug APIs (use with caution)
+  - `personal`: Account management (use with caution)
+  - `db`: Database read/write
+  
+  ```bash
+  --rpcapi "eth,net,web3,posv"
+  ```
+</ResponseField>
+
+<ResponseField name="rpccorsdomain" type="string">
+  Comma-separated list of domains to accept cross-origin requests from (browser enforced).
+  
+  ```bash
+  --rpccorsdomain "*"
+  --rpccorsdomain "https://example.com,https://app.example.com"
+  ```
+</ResponseField>
+
+<ResponseField name="rpcvhosts" type="string" default="localhost">
+  Comma-separated list of virtual hostnames to accept requests from (server enforced).
+  
+  ```bash
+  --rpcvhosts "*"
+  --rpcvhosts "localhost,node.example.com"
+  ```
+</ResponseField>
+
+<ResponseField name="rpctimeout" type="number" default="120">
+  Timeout for RPC HTTP handlers in seconds.
+  
+  ```bash
+  --rpctimeout 120
+  ```
+</ResponseField>
+
+### WebSocket-RPC
+
+<ResponseField name="ws" type="boolean">
+  Enable the WebSocket-RPC server.
+  
+  ```bash
+  --ws
+  ```
+</ResponseField>
+
+<ResponseField name="wsaddr" type="string" default="127.0.0.1">
+  WebSocket-RPC server listening interface.
+  
+  ```bash
+  --wsaddr 0.0.0.0
+  ```
+</ResponseField>
+
+<ResponseField name="wsport" type="number" default="8546">
+  WebSocket-RPC server listening port.
+  
+  ```bash
+  --wsport 8546
+  ```
+</ResponseField>
+
+<ResponseField name="wsapi" type="string">
+  APIs offered over WebSocket-RPC interface.
+  
+  ```bash
+  --wsapi "eth,net,web3"
+  ```
+</ResponseField>
+
+<ResponseField name="wsorigins" type="string">
+  Origins from which to accept WebSocket requests.
+  
+  ```bash
+  --wsorigins "*"
+  --wsorigins "https://example.com"
+  ```
+</ResponseField>
+
+### IPC
+
+<ResponseField name="ipcdisable" type="boolean">
+  Disable the IPC-RPC server.
+  
+  ```bash
+  --ipcdisable
+  ```
+</ResponseField>
+
+<ResponseField name="ipcpath" type="string">
+  Filename for IPC socket/pipe within the datadir.
+  
+  ```bash
+  --ipcpath /path/to/geth.ipc
+  ```
+</ResponseField>
+
+## Transaction Pool Configuration
+
+<ResponseField name="txpool.nolocals" type="boolean">
+  Disable price exemptions for locally submitted transactions.
+  
+  ```bash
+  --txpool.nolocals
+  ```
+</ResponseField>
+
+<ResponseField name="txpool.journal" type="string" default="transactions.rlp">
+  Disk journal for local transactions to survive node restarts.
+  
+  ```bash
+  --txpool.journal "transactions.rlp"
+  ```
+</ResponseField>
+
+<ResponseField name="txpool.rejournal" type="duration" default="1h">
+  Time interval to regenerate the local transaction journal.
+  
+  ```bash
+  --txpool.rejournal 1h
+  ```
+</ResponseField>
+
+<ResponseField name="txpool.pricelimit" type="number" default="1">
+  Minimum gas price limit to enforce for acceptance into the pool.
+  
+  ```bash
+  --txpool.pricelimit 1
+  ```
+</ResponseField>
+
+<ResponseField name="txpool.pricebump" type="number" default="10">
+  Price bump percentage to replace an already existing transaction.
+  
+  ```bash
+  --txpool.pricebump 10
+  ```
+</ResponseField>
+
+<ResponseField name="txpool.accountslots" type="number" default="16">
+  Minimum number of executable transaction slots guaranteed per account.
+  
+  ```bash
+  --txpool.accountslots 16
+  ```
+</ResponseField>
+
+<ResponseField name="txpool.globalslots" type="number" default="4096">
+  Maximum number of executable transaction slots for all accounts.
+  
+  ```bash
+  --txpool.globalslots 4096
+  ```
+</ResponseField>
+
+<ResponseField name="txpool.accountqueue" type="number" default="64">
+  Maximum number of non-executable transaction slots permitted per account.
+  
+  ```bash
+  --txpool.accountqueue 64
+  ```
+</ResponseField>
+
+<ResponseField name="txpool.globalqueue" type="number" default="1024">
+  Maximum number of non-executable transaction slots for all accounts.
+  
+  ```bash
+  --txpool.globalqueue 1024
+  ```
+</ResponseField>
+
+<ResponseField name="txpool.lifetime" type="duration" default="3h">
+  Maximum amount of time non-executable transactions are queued.
+  
+  ```bash
+  --txpool.lifetime 3h
+  ```
+</ResponseField>
+
+## Performance Tuning
+
+### Cache Configuration
+
+<ResponseField name="cache" type="number" default="1024">
+  Megabytes of memory allocated to internal caching.
+  
+  ```bash
+  --cache 2048
+  ```
+</ResponseField>
+
+<ResponseField name="cache.database" type="number" default="75">
+  Percentage of cache memory allowance to use for database I/O.
+  
+  ```bash
+  --cache.database 75
+  ```
+</ResponseField>
+
+<ResponseField name="cache.gc" type="number" default="25">
+  Percentage of cache memory allowance to use for trie pruning.
+  
+  ```bash
+  --cache.gc 25
+  ```
+</ResponseField>
+
+## Monitoring and Logging
+
+<ResponseField name="verbosity" type="number" default="3">
+  Logging verbosity level:
+  - `1`: Error messages only
+  - `2`: Warnings and errors
+  - `3`: Info, warnings, and errors (default)
+  - `4`: Debug messages
+  - `5`: Trace messages (very verbose)
+  
+  ```bash
+  --verbosity 3
+  ```
+</ResponseField>
+
+<ResponseField name="ethstats" type="string">
+  Reporting URL for ethstats service in format `nodename:secret@host:port`.
+  
+  ```bash
+  --ethstats "my-node:getty-site-pablo-auger-room-sos-blair-shin-whiz-delhi@stats.viction.xyz"
+  ```
+</ResponseField>
+
+<ResponseField name="metrics" type="boolean">
+  Enable metrics collection and reporting.
+  
+  ```bash
+  --metrics
+  ```
+</ResponseField>
+
+<ResponseField name="metrics.expensive" type="boolean">
+  Enable expensive metrics collection and reporting.
+  
+  ```bash
+  --metrics.expensive
+  ```
+</ResponseField>
+
+<ResponseField name="metrics.addr" type="string" default="127.0.0.1">
+  Metrics HTTP server listening interface.
+  
+  ```bash
+  --metrics.addr 127.0.0.1
+  ```
+</ResponseField>
+
+<ResponseField name="metrics.port" type="number" default="6060">
+  Metrics HTTP server listening port.
+  
+  ```bash
+  --metrics.port 6060
+  ```
+</ResponseField>
+
+## Viction-Specific Options
+
+<ResponseField name="announce-txs" type="boolean">
+  Always commit transactions. Useful for testing and development.
+  
+  ```bash
+  --announce-txs
+  ```
+</ResponseField>
+
+<ResponseField name="store-reward" type="boolean">
+  Store masternode reward data to files. Requires `--gcmode archive`.
+  
+  ```bash
+  --store-reward --gcmode archive
+  ```
+  
+  <Info>
+    Reward files are stored in `{datadir}/tomo/rewards/`
+  </Info>
+</ResponseField>
+
+<ResponseField name="rewound" type="number" default="0">
+  Number of blocks to rewind. Used for debugging and recovery.
+  
+  ```bash
+  --rewound 100
+  ```
+</ResponseField>
+
+<ResponseField name="rollback" type="string">
+  Rollback chain to specified block hash.
+  
+  ```bash
+  --rollback "0x1234567890abcdef..."
+  ```
+</ResponseField>
+
+<ResponseField name="reexec" type="number" default="256">
+  Number of blocks to re-execute during import.
+  
+  ```bash
+  --reexec 256
+  ```
+</ResponseField>
+
+## TomoX Configuration
+
+<ResponseField name="tomox" type="boolean">
+  Enable the TomoX DEX protocol.
+  
+  ```bash
+  --tomox
+  ```
+</ResponseField>
+
+<ResponseField name="tomox.datadir" type="string">
+  Data directory for TomoX databases. Defaults to `{datadir}/tomox`.
+  
+  ```bash
+  --tomox.datadir /path/to/tomox/data
+  ```
+</ResponseField>
+
+<ResponseField name="tomox.dbengine" type="string" default="leveldb">
+  Database engine for TomoX:
+  - `leveldb`: LevelDB (default)
+  - `mongodb`: MongoDB
+  
+  ```bash
+  --tomox.dbengine mongodb
+  ```
+</ResponseField>
+
+<ResponseField name="tomox.dbName" type="string" default="tomodex">
+  Database name for TomoX.
+  
+  ```bash
+  --tomox.dbName tomodex
+  ```
+</ResponseField>
+
+<ResponseField name="tomox.dbConnectionUrl" type="string" default="localhost:27017">
+  MongoDB connection URL (if using MongoDB engine). Supports multiple instances separated by commas.
+  
+  ```bash
+  --tomox.dbConnectionUrl "localhost:27017,localhost:27018"
+  ```
+</ResponseField>
+
+<ResponseField name="tomox.dbReplicaSetName" type="string">
+  MongoDB replica set name (if using master-slave setup).
+  
+  ```bash
+  --tomox.dbReplicaSetName "rs0"
+  ```
+</ResponseField>
+
+## Configuration File
+
+Instead of passing all flags via command line, you can use a configuration file:
+
+```bash
+--config /path/to/config.toml
+```
+
+Example configuration file:
+
+```toml
+[Eth]
+NetworkId = 88
+SyncMode = "full"
+GasPrice = 250000000
+
+[Node]
+DataDir = "/path/to/data"
+HTTPHost = "0.0.0.0"
+HTTPPort = 8545
+WSHost = "0.0.0.0"
+WSPort = 8546
+
+[Node.P2P]
+MaxPeers = 25
+ListenAddr = ":30303"
+```
+
+## Common Configuration Patterns
+
+<Tabs>
+  <Tab title="Full Node">
+    ```bash
+    tomo \
+      --datadir ./data \
+      --keystore ./keystore \
+      --password ./password.txt \
+      --unlock 0 \
+      --networkid 88 \
+      --syncmode full \
+      --gcmode full \
+      --rpc --rpcaddr 0.0.0.0 --rpcport 8545 \
+      --ws --wsaddr 0.0.0.0 --wsport 8546 \
+      --verbosity 3
+    ```
+  </Tab>
+
+  <Tab title="Masternode">
+    ```bash
+    tomo \
+      --datadir ./data \
+      --keystore ./keystore \
+      --password ./password.txt \
+      --unlock 0 \
+      --networkid 88 \
+      --syncmode full \
+      --gcmode full \
+      --mine \
+      --gasprice 250000000 \
+      --targetgaslimit 30000000 \
+      --rpc --rpcaddr 0.0.0.0 --rpcport 8545 --rpcapi "eth,net,web3,posv" \
+      --ws --wsaddr 0.0.0.0 --wsport 8546 \
+      --port 30303 \
+      --maxpeers 25 \
+      --ethstats "my-node:secret@stats.viction.xyz" \
+      --verbosity 3
+    ```
+  </Tab>
+
+  <Tab title="Archive Node">
+    ```bash
+    tomo \
+      --datadir ./data \
+      --keystore ./keystore \
+      --password ./password.txt \
+      --unlock 0 \
+      --networkid 88 \
+      --syncmode full \
+      --gcmode archive \
+      --store-reward \
+      --rpc --rpcaddr 0.0.0.0 --rpcport 8545 --rpcapi "eth,net,web3,debug,posv" \
+      --ws --wsaddr 0.0.0.0 --wsport 8546 \
+      --cache 4096 \
+      --verbosity 3
+    ```
+  </Tab>
+
+  <Tab title="Testnet">
+    ```bash
+    tomo \
+      --datadir ./data \
+      --keystore ./keystore \
+      --password ./password.txt \
+      --unlock 0 \
+      --tomo-testnet \
+      --networkid 89 \
+      --syncmode full \
+      --gcmode full \
+      --rpc --rpcaddr 0.0.0.0 --rpcport 8545 \
+      --ws --wsaddr 0.0.0.0 --wsport 8546 \
+      --verbosity 3
+    ```
+  </Tab>
+</Tabs>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Run a Full Node" icon="circle-nodes" href="/nodes/running-fullnode">
+    Get started with running a full node
+  </Card>
+  <Card title="Docker Deployment" icon="docker" href="/nodes/docker-deployment">
+    Deploy using Docker containers
+  </Card>
+</CardGroup>

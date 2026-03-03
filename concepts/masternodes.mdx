@@ -1,0 +1,402 @@
+---
+title: Masternode System
+description: Understanding Viction's masternode infrastructure and requirements
+---
+
+Masternodes are the backbone of the Viction network, serving as validators in the Proof of Stake Voting consensus mechanism. They produce blocks, validate transactions, and maintain network security.
+
+## Overview
+
+Viction operates with a fixed set of **150 masternodes** that are elected through a democratic voting process by VIC token holders. This design balances decentralization with performance.
+
+### Why 150 Masternodes?
+
+- **Optimal Performance**: Enough nodes for decentralization without sacrificing speed
+- **Fast Consensus**: Smaller validator set enables 2-second block times
+- **Economic Security**: Requires significant stake to control network
+- **Manageable Coordination**: Efficient communication and coordination
+
+## Masternode Roles
+
+### Block Production (M1)
+
+As a block creator (M1), masternodes:
+
+- Propose new blocks when it's their turn
+- Select and order transactions from mempool
+- Execute state transitions
+- Sign blocks with their private key
+- Broadcast blocks to the network
+
+### Block Validation (M2)
+
+As a validator (M2), masternodes:
+
+- Verify blocks created by other masternodes
+- Validate transaction execution and state changes
+- Co-sign valid blocks
+- Reject invalid blocks
+- Report misbehavior
+
+<Info>
+Every block requires both a creator (M1) and validator (M2) signature, providing enhanced security through double validation.
+</Info>
+
+## Masternode Selection
+
+### Election Process
+
+1. **Candidacy**: Any address can become a masternode candidate by:
+   - Staking 50,000 VIC tokens
+   - Registering through the masternode smart contract
+   - Meeting technical requirements
+
+2. **Voting**: VIC token holders vote for candidates:
+   - Vote weight proportional to VIC holdings
+   - Can vote for up to 30 candidates
+   - Votes can be changed at any time
+
+3. **Selection**: Top 150 candidates by vote weight become masternodes
+
+4. **Epoch Activation**: New masternode set takes effect at next epoch (every 900 blocks)
+
+### Voting Mechanics
+
+From the masternode smart contract:
+
+- **Minimum Stake**: 50,000 VIC required to be a candidate
+- **Vote Decay**: No vote decay - votes remain until withdrawn
+- **Instant Updates**: Vote changes take effect in next epoch
+- **No Lock Period**: Voters can withdraw votes anytime
+
+## Masternode Requirements
+
+### Technical Requirements
+
+#### Hardware Specifications
+
+**Minimum Requirements:**
+- CPU: 4 cores
+- RAM: 16GB
+- Storage: 500GB SSD
+- Network: 100Mbps with low latency
+
+**Recommended Specifications:**
+- CPU: 8+ cores (high clock speed)
+- RAM: 32GB+
+- Storage: 1TB+ NVMe SSD
+- Network: 1Gbps with redundant connections
+- Backup Power: UPS for high availability
+
+#### Software Requirements
+
+- Operating System: Ubuntu 20.04+ or equivalent Linux distribution
+- Viction Node: Latest stable release from [GitHub](https://github.com/BuildOnViction/victionchain)
+- Monitoring: Prometheus/Grafana recommended
+- Security: Firewall, SSH hardening, key management
+
+### Network Configuration
+
+Masternodes must configure the following ports:
+
+```bash
+# P2P Communication
+--port 30303
+
+# RPC Interface (internal only)
+--rpc --rpcaddr 127.0.0.1 --rpcport 8545
+
+# WebSocket Interface (internal only)
+--ws --wsaddr 127.0.0.1 --wsport 8546
+```
+
+<Warning>
+Never expose RPC or WebSocket interfaces to the public internet. Use VPN or SSH tunnels for remote access.
+</Warning>
+
+### Running a Masternode
+
+#### 1. Initialize Account
+
+```bash
+# Create new account
+tomo account new --password /path/to/password --keystore /path/to/keystore
+
+# Or import existing account
+tomo account import /path/to/privatekey --password /path/to/password \
+  --keystore /path/to/keystore
+```
+
+#### 2. Start Masternode
+
+```bash
+tomo --datadir /path/to/data \
+  --keystore /path/to/keystore \
+  --password /path/to/password --unlock 0 \
+  --networkid 88 \
+  --gasprice 250000000 \
+  --rpc --rpcaddr 127.0.0.1 --rpcport 8545 --rpcvhosts "*" \
+  --rpcapi "eth,net,web3,debug" \
+  --ws --wsaddr 127.0.0.1 --wsport 8546 --wsorigins "*" \
+  --mine \
+  --port 30303 \
+  --syncmode "full" --gcmode "full" \
+  --ethstats your-node-name:secret@stats.viction.xyz \
+  --verbosity 3
+```
+
+#### 3. Register as Candidate
+
+After node is synced, register through:
+- VicMaster web interface: [https://vicmaster.xyz](https://vicmaster.xyz)
+- Direct smart contract interaction
+
+## Masternode Snapshots
+
+The consensus engine maintains snapshots of the masternode set for efficient validation.
+
+### Snapshot Structure
+
+From `consensus/posv/snapshot.go`:
+
+```go
+type Snapshot struct {
+    Number  uint64                          // Block number
+    Hash    common.Hash                     // Block hash
+    Signers map[common.Address]struct{}     // Active masternodes
+    Recents map[uint64]common.Address       // Recent block creators
+    Votes   []*clique.Vote                  // Vote history
+    Tally   map[common.Address]clique.Tally // Vote tallies
+}
+```
+
+### Snapshot Updates
+
+Snapshots are updated:
+
+- **Every Block**: Recent signers map updated
+- **Every Checkpoint**: New masternode list applied
+- **Penalty Events**: Penalized nodes removed from active set
+
+### Retrieving Masternode List
+
+From `consensus/posv/posv.go:553-565`:
+
+```go
+func (c *Posv) GetMasternodes(chain consensus.ChainReader, 
+    header *types.Header) []common.Address {
+    
+    n := header.Number.Uint64()
+    e := c.config.Epoch
+    
+    switch {
+    case n%e == 0:
+        // At checkpoint: extract from current header
+        return c.GetMasternodesFromCheckpointHeader(header, n, e)
+    case n%e != 0:
+        // Between checkpoints: get from last checkpoint
+        h := chain.GetHeaderByNumber(n - (n % e))
+        return c.GetMasternodesFromCheckpointHeader(h, n, e)
+    default:
+        return []common.Address{}
+    }
+}
+```
+
+## Performance Expectations
+
+### Uptime Requirements
+
+Masternodes should maintain:
+
+- **99%+ Uptime**: Required to avoid penalties
+- **Low Latency**: &lt;100ms response time to network events
+- **Fast Sync**: Quick synchronization after restarts
+
+### Block Production
+
+Each masternode creates approximately:
+
+- **4 blocks per hour** (150 masternodes, 2-second blocks)
+- **96 blocks per day**
+- **35,040 blocks per year**
+
+### Turn Frequency
+
+With 150 masternodes and 2-second blocks:
+
+- **Turn every 300 seconds** (5 minutes)
+- **Block creation window**: 2 seconds
+- **Validation duties**: Continuous (as assigned M2)
+
+## Masternode Rewards
+
+### Block Rewards
+
+From `params/config.go`:
+
+```go
+Reward: 250,  // 250 VIC per block
+```
+
+Rewards are distributed:
+
+- **Block Creator (M1)**: Receives portion for block production
+- **Validator (M2)**: Receives portion for validation
+- **Voters**: Distributed proportionally to voting stake
+- **Foundation**: Small percentage to development fund
+
+### Reward Distribution
+
+Rewards are calculated and distributed every epoch (900 blocks):
+
+```go
+RewardCheckpoint: 900,  // Distribute every 900 blocks (~30 minutes)
+```
+
+Factors affecting rewards:
+
+- Number of blocks successfully created
+- Validation participation
+- Total votes received
+- Penalties (reduces rewards)
+
+### Annual Returns
+
+Estimated returns for masternode operators:
+
+- **Block Production**: ~8,760,000 VIC distributed annually
+- **Your Share**: Depends on votes received and performance
+- **ROI**: Varies based on VIC price and voting weight
+
+<Info>
+Actual returns depend on voting weight, network participation, and masternode performance. Check current rates at [VicMaster](https://vicmaster.xyz).
+</Info>
+
+## Penalty System
+
+### Automatic Penalties
+
+Masternodes are penalized for:
+
+1. **Missing Blocks**: Failing to create block when it's their turn
+2. **Failed Validation**: Not validating assigned blocks as M2
+3. **Invalid Blocks**: Creating blocks that fail validation
+4. **Extended Downtime**: Prolonged offline periods
+
+### Penalty Duration
+
+From the consensus code:
+
+```go
+const LimitPenaltyEpoch = 4  // Excluded for up to 4 epochs
+```
+
+Penalized masternodes:
+
+- Removed from active masternode set
+- Cannot produce or validate blocks
+- Do not receive rewards
+- Excluded for 1-4 epochs depending on severity
+
+### Penalty Recovery
+
+To recover from penalties:
+
+1. Fix the underlying issue (hardware, network, software)
+2. Wait for penalty period to expire
+3. Automatically reinstated in next epoch
+4. Resume normal operation
+
+<Warning>
+Repeated penalties may result in loss of voter confidence and reduced voting weight, potentially losing masternode status.
+</Warning>
+
+## Monitoring and Maintenance
+
+### Essential Monitoring
+
+Monitor these metrics:
+
+- **Block Production Rate**: Should match expected rate (~96/day)
+- **Validation Success Rate**: Should be >99%
+- **Peer Count**: Should have 25+ active peers
+- **Sync Status**: Always fully synced
+- **System Resources**: CPU, RAM, disk, network usage
+- **Penalties**: Track any penalties received
+
+### Recommended Tools
+
+- **Node Status**: Built-in ethstats reporting
+- **Blockchain Explorer**: [VicScan](https://vicscan.xyz)
+- **Masternode Stats**: [VicMaster](https://vicmaster.xyz)
+- **System Monitoring**: Prometheus + Grafana
+- **Log Analysis**: ELK Stack or similar
+
+### Maintenance Best Practices
+
+1. **Regular Updates**: Keep node software up-to-date
+2. **Backup Keys**: Securely backup keystore files
+3. **Monitor Alerts**: Set up alerting for issues
+4. **Redundancy**: Consider hot standby configuration
+5. **Security Audits**: Regular security reviews
+6. **Documentation**: Document your setup and procedures
+
+## Security Considerations
+
+### Key Management
+
+- **Private Keys**: Never share or expose private keys
+- **Hardware Wallet**: Consider using hardware wallet for signing
+- **Encrypted Keystore**: Always use password-encrypted keystores
+- **Key Backup**: Secure offline backup of keys
+
+### Network Security
+
+- **Firewall**: Only open required ports (30303)
+- **SSH Hardening**: Disable password auth, use key-only
+- **DDoS Protection**: Consider DDoS mitigation service
+- **Access Control**: Restrict access to authorized IPs only
+
+### Operational Security
+
+- **Separate Machines**: Don't run masternode on shared infrastructure
+- **Monitoring**: 24/7 monitoring and alerting
+- **Incident Response**: Have a plan for handling issues
+- **Update Process**: Test updates in testnet first
+
+## Troubleshooting
+
+### Common Issues
+
+**Not Producing Blocks:**
+- Check if node is fully synced
+- Verify account is unlocked
+- Confirm registration in masternode contract
+- Check voting weight (must be in top 150)
+
+**High Penalty Rate:**
+- Review system logs for errors
+- Check network connectivity and latency
+- Verify system resources are sufficient
+- Ensure clock is synchronized (NTP)
+
+**Low Peer Count:**
+- Check firewall rules
+- Verify port 30303 is open
+- Review bootnode connectivity
+- Check NAT configuration
+
+### Getting Help
+
+- **Documentation**: [https://docs.viction.xyz](https://docs.viction.xyz)
+- **Telegram**: Official Viction Telegram groups
+- **GitHub**: [Issue tracker](https://github.com/BuildOnViction/victionchain/issues)
+- **Forum**: Community support forum
+
+## Related Resources
+
+- [System Architecture](/concepts/architecture)
+- [PoSV Consensus](/concepts/posv-consensus)
+- [Network Information](/concepts/network-information)
+- [VicMaster](https://vicmaster.xyz)

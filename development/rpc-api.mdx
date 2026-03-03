@@ -1,0 +1,324 @@
+---
+title: RPC API
+description: JSON-RPC API overview and usage for Viction blockchain
+---
+
+## Overview
+
+Viction provides a JSON-RPC API for interacting with the blockchain. The RPC API is compatible with Ethereum's JSON-RPC specification, making it easy to integrate existing Ethereum tools and libraries.
+
+## Connection Methods
+
+Viction supports multiple RPC connection methods:
+
+### HTTP/HTTPS
+
+HTTP is the most common method for RPC calls:
+
+```bash
+# Start node with HTTP RPC
+tomo --rpc --rpcaddr 0.0.0.0 --rpcport 8545 --rpcapi "eth,net,web3"
+```
+
+**HTTP RPC Flags:**
+- `--rpc`: Enable HTTP-RPC server
+- `--rpcaddr`: HTTP-RPC server listening interface (default: "localhost")
+- `--rpcport`: HTTP-RPC server listening port (default: 8545)
+- `--rpcapi`: API's offered over HTTP-RPC interface
+- `--rpccorsdomain`: Comma separated list of domains to accept cross-origin requests
+- `--rpcvhosts`: Comma separated list of virtual hostnames to accept requests
+
+### WebSocket
+
+WebSocket provides real-time event subscriptions:
+
+```bash
+# Start node with WebSocket RPC
+tomo --ws --wsaddr 0.0.0.0 --wsport 8546 --wsapi "eth,net,web3"
+```
+
+**WebSocket RPC Flags:**
+- `--ws`: Enable WS-RPC server
+- `--wsaddr`: WS-RPC server listening interface (default: "localhost")
+- `--wsport`: WS-RPC server listening port (default: 8546)
+- `--wsapi`: API's offered over WS-RPC interface
+- `--wsorigins`: Origins from which to accept websocket requests
+
+### IPC (Inter-Process Communication)
+
+IPC provides the fastest and most secure local connection:
+
+```bash
+# IPC endpoint is created automatically
+# Default location: ~/.tomo/tomo.ipc
+```
+
+## API Namespaces
+
+Viction organizes RPC methods into namespaces:
+
+### eth (Ethereum Compatible)
+
+Core blockchain operations:
+
+- `eth_blockNumber`: Get latest block number
+- `eth_getBalance`: Get account balance
+- `eth_getBlockByNumber`: Get block by number
+- `eth_getBlockByHash`: Get block by hash
+- `eth_getTransactionByHash`: Get transaction details
+- `eth_getTransactionReceipt`: Get transaction receipt
+- `eth_sendRawTransaction`: Send signed transaction
+- `eth_call`: Execute read-only contract call
+- `eth_estimateGas`: Estimate gas for transaction
+- `eth_getLogs`: Get event logs
+- `eth_subscribe`: Subscribe to events (WebSocket only)
+
+### net
+
+Network information:
+
+- `net_version`: Get network ID
+- `net_listening`: Check if client is listening
+- `net_peerCount`: Get number of connected peers
+
+### web3
+
+Utility methods:
+
+- `web3_clientVersion`: Get client version
+- `web3_sha3`: Calculate Keccak-256 hash
+
+### personal
+
+Account management (use with caution):
+
+- `personal_newAccount`: Create new account
+- `personal_unlockAccount`: Unlock account
+- `personal_sendTransaction`: Send transaction
+- `personal_sign`: Sign data
+
+### txpool
+
+Transaction pool inspection:
+
+- `txpool_content`: Get pending and queued transactions
+- `txpool_inspect`: Inspect transaction pool
+- `txpool_status`: Get transaction pool status
+
+### debug
+
+Advanced debugging (requires `--vmodule` flag):
+
+- `debug_traceTransaction`: Trace transaction execution
+- `debug_traceBlock`: Trace block execution
+- `debug_getBlockRlp`: Get RLP-encoded block
+
+## Making RPC Calls
+
+### Using cURL
+
+```bash
+# Get latest block number
+curl -X POST \
+  -H "Content-Type: application/json" \
+  --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' \
+  http://localhost:8545
+
+# Get balance
+curl -X POST \
+  -H "Content-Type: application/json" \
+  --data '{"jsonrpc":"2.0","method":"eth_getBalance","params":["0x...","latest"],"id":1}' \
+  http://localhost:8545
+```
+
+### Using JavaScript (Node.js)
+
+```javascript
+const axios = require('axios');
+
+async function getBlockNumber() {
+  const response = await axios.post('http://localhost:8545', {
+    jsonrpc: '2.0',
+    method: 'eth_blockNumber',
+    params: [],
+    id: 1
+  });
+  
+  console.log('Block number:', parseInt(response.data.result, 16));
+}
+
+getBlockNumber();
+```
+
+## RPC Server Implementation
+
+Viction's RPC server is built on a flexible architecture:
+
+### Server Features
+
+- **Concurrent Request Handling**: Multiple requests processed simultaneously
+- **Out-of-Order Responses**: Responses can be sent back in any order
+- **Multiple Codecs**: JSON-RPC over HTTP, WebSocket, and IPC
+- **Service Registration**: Dynamic method registration
+- **Publish/Subscribe**: Real-time event subscriptions
+
+### Method Requirements
+
+For a method to be exposed via RPC, it must satisfy:
+
+1. Object must be exported
+2. Method must be exported
+3. Method returns 0, 1 (response or error), or 2 (response and error) values
+4. Method arguments must be exported or builtin types
+5. Method return values must be exported or builtin types
+
+### Example Service
+
+```go
+type CalculatorService struct {}
+
+func (s *CalculatorService) Add(a, b int) int {
+    return a + b
+}
+
+func (s *CalculatorService) Div(a, b int) (int, error) {
+    if b == 0 {
+        return 0, errors.New("divide by zero")
+    }
+    return a/b, nil
+}
+
+// Register the service
+server := rpc.NewServer()
+server.RegisterName("calculator", new(CalculatorService))
+```
+
+## Subscriptions (WebSocket)
+
+WebSocket connections support publish/subscribe for real-time updates:
+
+### Available Subscriptions
+
+- `newHeads`: New block headers
+- `logs`: Event logs matching filter criteria
+- `newPendingTransactions`: New pending transactions
+- `syncing`: Sync status changes
+
+### Subscription Example
+
+```javascript
+const Web3 = require('web3');
+const web3 = new Web3('ws://localhost:8546');
+
+// Subscribe to new blocks
+web3.eth.subscribe('newBlockHeaders', (error, blockHeader) => {
+  if (!error) {
+    console.log('New block:', blockHeader.number);
+  }
+});
+
+// Subscribe to logs
+web3.eth.subscribe('logs', {
+  address: '0x...', // Contract address
+  topics: ['0x...']  // Event signature
+}, (error, log) => {
+  if (!error) {
+    console.log('New log:', log);
+  }
+});
+```
+
+## Rate Limiting and Security
+
+### Best Practices
+
+1. **Never expose personal API publicly**: `personal` namespace should only be used locally
+2. **Use HTTPS in production**: Encrypt RPC traffic
+3. **Implement rate limiting**: Use reverse proxy (nginx, HAProxy)
+4. **Restrict API methods**: Only enable necessary namespaces
+5. **Configure CORS carefully**: Restrict origins in `--rpccorsdomain`
+6. **Use firewall rules**: Limit access to RPC ports
+
+### Production Configuration
+
+```bash
+tomo \
+  --rpc --rpcaddr 127.0.0.1 --rpcport 8545 \
+  --rpcapi "eth,net,web3" \
+  --rpccorsdomain "https://yourdapp.com" \
+  --ws --wsaddr 127.0.0.1 --wsport 8546 \
+  --wsapi "eth,net,web3" \
+  --wsorigins "https://yourdapp.com"
+```
+
+## Batch Requests
+
+Reduce latency by batching multiple RPC calls:
+
+```javascript
+const batch = new web3.BatchRequest();
+
+batch.add(web3.eth.getBalance.request('0x...', 'latest', callback));
+batch.add(web3.eth.getTransactionCount.request('0x...', 'latest', callback));
+
+batch.execute();
+```
+
+## Error Handling
+
+### Common Error Codes
+
+- `-32700`: Parse error
+- `-32600`: Invalid request
+- `-32601`: Method not found
+- `-32602`: Invalid params
+- `-32603`: Internal error
+- `-32000`: Server error (custom)
+
+### Example Error Response
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "error": {
+    "code": -32601,
+    "message": "Method not found"
+  }
+}
+```
+
+## Performance Optimization
+
+### Connection Management
+
+- **Keep-Alive**: HTTP connections use TCP keep-alive (30s interval)
+- **Timeout Settings**: Default dial timeout is 10s, write timeout is 10s
+- **Subscription Buffer**: Max buffer size is 8000 items
+
+### Payload Limits
+
+- **Max Request Size**: 128KB (131,072 bytes)
+- **Max WebSocket Payload**: Configurable per connection
+
+## Public RPC Endpoints
+
+Viction provides public RPC endpoints:
+
+**Mainnet:**
+- HTTP: `https://rpc.viction.xyz`
+- WebSocket: `wss://ws.viction.xyz`
+
+**Testnet:**
+- HTTP: `https://rpc-testnet.viction.xyz`
+- WebSocket: `wss://ws-testnet.viction.xyz`
+
+<Note>
+Public endpoints have rate limits. For production applications, run your own node.
+</Note>
+
+## Next Steps
+
+- [Web3 Integration Guide](/development/web3-integration)
+- [Testing and Development](/development/testing)
+- [Smart Contract Development](/features/smart-contracts)

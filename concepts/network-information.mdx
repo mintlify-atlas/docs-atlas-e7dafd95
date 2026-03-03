@@ -1,0 +1,486 @@
+---
+title: Network Information
+description: Network IDs, RPC endpoints, bootnodes, and connection parameters for Viction networks
+---
+
+This page provides essential network information for connecting to Viction mainnet and testnet.
+
+## Network IDs
+
+Viction operates two public networks:
+
+### Mainnet
+
+- **Network ID**: 88
+- **Chain ID**: 88
+- **Currency Symbol**: VIC
+- **Currency Decimals**: 18
+- **Block Explorer**: [https://vicscan.xyz](https://vicscan.xyz)
+
+### Testnet
+
+- **Network ID**: 89
+- **Chain ID**: 89
+- **Currency Symbol**: VIC
+- **Currency Decimals**: 18
+- **Block Explorer**: [https://testnet.vicscan.xyz](https://testnet.vicscan.xyz)
+
+<Info>
+Network ID and Chain ID are identical for both networks, making EIP-155 replay protection straightforward.
+</Info>
+
+## Genesis Configuration
+
+From `params/config.go`:
+
+### Mainnet Genesis
+
+```go
+VicMainnetChainConfig = &ChainConfig{
+    ChainId:        big.NewInt(88),
+    HomesteadBlock: big.NewInt(1),
+    EIP150Block:    big.NewInt(2),
+    EIP155Block:    big.NewInt(3),
+    EIP158Block:    big.NewInt(3),
+    ByzantiumBlock: big.NewInt(4),
+    SaigonBlock:    big.NewInt(86158494),
+    AtlasBlock:     big.NewInt(97705094),
+    Posv: &PosvConfig{
+        Period:              2,
+        Epoch:               900,
+        Reward:              250,
+        RewardCheckpoint:    900,
+        Gap:                 5,
+        FoudationWalletAddr: common.HexToAddress("0x0000000000000000000000000000000000000068"),
+    },
+}
+```
+
+**Genesis Hash**: `0x9326145f8a2c8c00bbe13afc7d7f3d9c868b5ef39d89f2f4e9390e9720298624`
+
+### Testnet Genesis
+
+```go
+VicTestnetChainConfig = &ChainConfig{
+    ChainId:                      big.NewInt(89),
+    HomesteadBlock:               big.NewInt(1),
+    EIP150Block:                  big.NewInt(2),
+    EIP155Block:                  big.NewInt(3),
+    EIP158Block:                  big.NewInt(3),
+    ByzantiumBlock:               big.NewInt(4),
+    TIP2019Block:                 big.NewInt(0),
+    TIPSigningBlock:              big.NewInt(0),
+    TIPRandomizeBlock:            big.NewInt(0),
+    SaigonBlock:                  big.NewInt(10004200),
+    AtlasBlock:                   big.NewInt(24697500),
+    Posv: &PosvConfig{
+        Period:              2,
+        Epoch:               900,
+        Reward:              250,
+        RewardCheckpoint:    900,
+        Gap:                 5,
+        FoudationWalletAddr: common.HexToAddress("0x0000000000000000000000000000000000000068"),
+    },
+}
+```
+
+**Genesis Hash**: `0x296f14cfe39dd2ce9cd2dcf2bd5973c9b59531bc239e7d445c66268b172e52e3`
+
+## Network Parameters
+
+### Consensus Parameters
+
+- **Block Time**: 2 seconds (`Period: 2`)
+- **Epoch Length**: 900 blocks (~30 minutes)
+- **Block Reward**: 250 VIC
+- **Gas Limit**: 84,000,000 gas per block
+- **Minimum Gas Price**: 250 Gwei (250000000 wei)
+
+### Hard Fork Blocks
+
+**Mainnet:**
+- Homestead: Block 1
+- EIP-150: Block 2
+- EIP-155/158: Block 3
+- Byzantium: Block 4
+- Saigon: Block 86,158,494
+- Atlas: Block 97,705,094
+
+**Testnet:**
+- Most TIPs activated at genesis (Block 0)
+- Saigon: Block 10,004,200
+- Atlas: Block 24,697,500
+
+## Public RPC Endpoints
+
+### Mainnet RPC
+
+**HTTP:**
+```
+https://rpc.viction.xyz
+```
+
+**WebSocket:**
+```
+wss://ws.viction.xyz
+```
+
+### Testnet RPC
+
+**HTTP:**
+```
+https://rpc-testnet.viction.xyz
+```
+
+**WebSocket:**
+```
+wss://ws-testnet.viction.xyz
+```
+
+### Rate Limits
+
+<Warning>
+Public RPC endpoints have rate limits. For production applications, consider running your own node or using dedicated RPC providers.
+</Warning>
+
+**Rate Limits:**
+- 10 requests per second per IP
+- 1000 requests per hour per IP
+- Some methods may have additional restrictions
+
+### RPC Methods
+
+Supported JSON-RPC methods:
+
+- Standard Ethereum JSON-RPC API
+- `eth_*` methods (accounts, transactions, blocks, state)
+- `net_*` methods (network information)
+- `web3_*` methods (utilities)
+- `debug_*` methods (debugging - limited on public nodes)
+- `posv_*` methods (PoSV-specific queries)
+
+## Bootnodes
+
+Bootnodes help new nodes discover peers on the network.
+
+### Mainnet Bootnodes
+
+From `params/bootnodes.go`:
+
+```go
+VicMainnetBootnodes = []string{
+    "enode://98b06c30c631ab869c25b4836684b3de632ec7db60db34920095f8039cd49076913a64565dc4d8a06569bd84afa9553b95590ba3dd86263e3b9b5657463693a7@162.19.43.250:30301",
+    "enode://4c075010c7c1199240aea58a4e570b13af374a4aa2ed0219360c6017da34ca644706426ab2c75f1da00552ef4a40245ba043854d20e7c1873306023b6790bf03@15.235.228.11:30301",
+    "enode://477afcdf9581d0f38f00b2d0376bb536a3c71b13fcfa3d6039efb19c57a69e389b819efeb516609fe3eb3c90a8ffe620e62abaf481de6b07b873cad543a635fb@162.19.103.252:30301",
+    "enode://6a03f00972d02bc1f004fd05adf9384fb05a629e69ae894eebe1b55fe667a2313b595a180418f505948f99e5c66661229f8ea1d5c12aadb16433cae3122d1d8a@3.1.61.17:30301",
+    "enode://f799bf1da9f8b25891054913d876b1dcc301284fd001078239bcb5fb408078ac89741b8039f9adb0dfbfe72dca0b753e48099de3a059c3e23dc2402434ff8fd6@13.229.196.181:30301",
+    "enode://d3a79693bf18fd5136a4b1809193e28f94400b00a65a7f21c918876d986212c8031834b332f39fb8a814fb5e90f0e413fead6953d1aa23a839bba1224e285ed6@122.248.245.143:30301",
+}
+```
+
+### Testnet Bootnodes
+
+```go
+VicTestnetBootnodes = []string{
+    "enode://77c303c0d7cd03cb0fcfee0b7fc1b162d2fcaf667dc23b416e631196c8d7bed9b937944372b4673bc3d8dcede4b37bf8e7e8855bbda76c96bba3fb573a10f1ad@162.19.43.250:30304",
+    "enode://b9b5f61ab47f3681e75240d8b86d05ab451cd47f206d1d3cb69a87c71491236cec10b8a7740ec88616199d6a76d309f41a647e2802a63a8e449773ee3a920ba4@15.235.228.11:30304",
+    "enode://0f41c53da72e07e3514efd7ce9e3f758acc2066d8ae66955e540620f7108fff91f8ebdc734b89dca14db2a70cdaf8c957579ec94e3dfdfe91b2923272f1cc099@13.214.64.64:30601",
+}
+```
+
+## Wallet Configuration
+
+### MetaMask Setup
+
+#### Mainnet
+
+1. Open MetaMask and click "Add Network"
+2. Enter the following details:
+
+```
+Network Name: Viction Mainnet
+RPC URL: https://rpc.viction.xyz
+Chain ID: 88
+Currency Symbol: VIC
+Block Explorer URL: https://vicscan.xyz
+```
+
+#### Testnet
+
+```
+Network Name: Viction Testnet
+RPC URL: https://rpc-testnet.viction.xyz
+Chain ID: 89
+Currency Symbol: VIC
+Block Explorer URL: https://testnet.vicscan.xyz
+```
+
+### Web3.js Configuration
+
+```javascript
+const Web3 = require('web3');
+
+// Mainnet
+const web3Mainnet = new Web3('https://rpc.viction.xyz');
+
+// Testnet
+const web3Testnet = new Web3('https://rpc-testnet.viction.xyz');
+
+// Verify connection
+web3Mainnet.eth.net.getId().then(netId => {
+    console.log('Network ID:', netId); // Should be 88 for mainnet
+});
+```
+
+### Ethers.js Configuration
+
+```javascript
+const { ethers } = require('ethers');
+
+// Mainnet
+const providerMainnet = new ethers.providers.JsonRpcProvider(
+    'https://rpc.viction.xyz',
+    {
+        chainId: 88,
+        name: 'viction-mainnet'
+    }
+);
+
+// Testnet
+const providerTestnet = new ethers.providers.JsonRpcProvider(
+    'https://rpc-testnet.viction.xyz',
+    {
+        chainId: 89,
+        name: 'viction-testnet'
+    }
+);
+
+// Verify connection
+providerMainnet.getNetwork().then(network => {
+    console.log('Network:', network);
+});
+```
+
+## Running Your Own Node
+
+### Quick Start
+
+#### Mainnet Full Node
+
+```bash
+tomo --datadir ./data \
+  --keystore ./keystore \
+  --networkid 88 \
+  --rpc --rpcaddr 127.0.0.1 --rpcport 8545 \
+  --ws --wsaddr 127.0.0.1 --wsport 8546 \
+  --syncmode "full" --gcmode "full"
+```
+
+#### Testnet Full Node
+
+```bash
+tomo --datadir ./data-testnet \
+  --keystore ./keystore \
+  --networkid 89 \
+  --rpc --rpcaddr 127.0.0.1 --rpcport 8545 \
+  --ws --wsaddr 127.0.0.1 --wsport 8546 \
+  --syncmode "full" --gcmode "full"
+```
+
+### Docker Setup
+
+#### Mainnet
+
+```bash
+docker run -d --name viction-mainnet \
+  -v "$PWD/data:/tomochain/data" \
+  -v "$PWD/keystore:/tomochain/keystore" \
+  -p 8545:8545 -p 8546:8546 -p 30303:30303 \
+  -e NETWORK_ID=88 \
+  buildonviction/node:latest
+```
+
+#### Testnet
+
+```bash
+docker run -d --name viction-testnet \
+  -v "$PWD/data-testnet:/tomochain/data" \
+  -v "$PWD/keystore:/tomochain/keystore" \
+  -p 8545:8545 -p 8546:8546 -p 30303:30303 \
+  -e NETWORK_ID=89 \
+  buildonviction/node:latest
+```
+
+### Sync Modes
+
+**Full Sync** (Recommended):
+```bash
+--syncmode "full" --gcmode "full"
+```
+- Downloads all blocks and executes all transactions
+- Prunes old state data (keeps last ~90 epochs)
+- Suitable for most use cases
+- Requires ~200GB storage
+
+**Archive Sync**:
+```bash
+--syncmode "full" --gcmode "archive"
+```
+- Keeps complete historical state
+- Required for block explorers and some analytics
+- Requires 1TB+ storage and grows continuously
+
+**Light Sync** (Experimental):
+```bash
+--syncmode "light"
+```
+- Only downloads block headers
+- Minimal storage and bandwidth
+- Limited functionality
+- Not recommended for production
+
+## Network Monitoring
+
+### Network Statistics
+
+**Mainnet Stats**: [https://stats.viction.xyz](https://stats.viction.xyz)
+
+**Testnet Stats**: [https://stats-testnet.viction.xyz](https://stats-testnet.viction.xyz)
+
+Monitor:
+- Active nodes
+- Block production rate
+- Network hash rate
+- Transaction volume
+- Gas prices
+
+### Block Explorers
+
+**Mainnet**: [https://vicscan.xyz](https://vicscan.xyz)
+
+**Testnet**: [https://testnet.vicscan.xyz](https://testnet.vicscan.xyz)
+
+Explore:
+- Blocks and transactions
+- Addresses and contracts
+- Token transfers
+- Masternode information
+- Network statistics
+
+## Gas Configuration
+
+### Gas Prices
+
+From `params/protocol_params.go`:
+
+```go
+const (
+    MinGasLimit          uint64 = 5000
+    TomoGenesisGasLimit  uint64 = 84000000
+    TxGas                uint64 = 21000  // Base transaction cost
+    TxGasContractCreation uint64 = 53000  // Contract creation cost
+)
+```
+
+### Recommended Gas Settings
+
+**Standard Transfer**:
+- Gas Limit: 21,000
+- Gas Price: 250 Gwei (0.00000025 VIC)
+- Total Cost: ~0.00525 VIC
+
+**Contract Interaction**:
+- Gas Limit: 100,000 - 500,000 (depends on complexity)
+- Gas Price: 250 Gwei
+- Total Cost: 0.025 - 0.125 VIC
+
+**Contract Deployment**:
+- Gas Limit: 1,000,000+ (depends on contract size)
+- Gas Price: 250 Gwei
+- Total Cost: 0.25+ VIC
+
+<Note>
+Viction's gas prices are significantly lower than Ethereum, making it cost-effective for frequent transactions and complex contracts.
+</Note>
+
+## Network Ports
+
+### Standard Ports
+
+- **30303**: P2P network communication (TCP & UDP)
+- **8545**: HTTP JSON-RPC interface
+- **8546**: WebSocket JSON-RPC interface
+
+### Firewall Configuration
+
+For a full node:
+
+```bash
+# Allow P2P connections
+sudo ufw allow 30303/tcp
+sudo ufw allow 30303/udp
+
+# RPC/WS should be restricted to localhost or trusted IPs
+# Do not expose to internet!
+```
+
+For a masternode:
+
+```bash
+# Only P2P port should be publicly accessible
+sudo ufw allow 30303/tcp
+sudo ufw allow 30303/udp
+
+# RPC/WS restricted to localhost
+sudo ufw deny 8545/tcp
+sudo ufw deny 8546/tcp
+```
+
+## Development Resources
+
+### Faucets
+
+**Testnet Faucet**: Available through Discord and Telegram
+
+Request testnet VIC for development and testing.
+
+### Tools and Libraries
+
+- **Truffle**: Fully compatible
+- **Hardhat**: Fully compatible
+- **Remix**: Works with custom network configuration
+- **Web3.js**: Full support
+- **Ethers.js**: Full support
+- **Viction SDK**: Native SDK for Viction-specific features
+
+### Smart Contract Verification
+
+Verify contracts on VicScan:
+
+1. Deploy contract and note the address
+2. Visit VicScan and search for your contract
+3. Click "Verify and Publish"
+4. Provide source code and compiler settings
+5. Submit for verification
+
+## Support and Community
+
+### Official Links
+
+- **Website**: [https://viction.xyz](https://viction.xyz)
+- **Documentation**: [https://docs.viction.xyz](https://docs.viction.xyz)
+- **GitHub**: [https://github.com/BuildOnViction](https://github.com/BuildOnViction)
+- **Block Explorer**: [https://vicscan.xyz](https://vicscan.xyz)
+
+### Community Channels
+
+- **Telegram**: Official Viction community
+- **Discord**: Developer community
+- **Twitter**: [@VictionOfficial](https://twitter.com/VictionOfficial)
+- **Forum**: Community discussions
+
+## Related Resources
+
+- [System Architecture](/concepts/architecture)
+- [PoSV Consensus](/concepts/posv-consensus)
+- [Masternode System](/concepts/masternodes)

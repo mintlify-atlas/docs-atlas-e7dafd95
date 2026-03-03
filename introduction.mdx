@@ -1,0 +1,147 @@
+---
+title: Introduction to Viction
+description: A scalable blockchain platform with Proof of Stake Voting consensus, 150 masternodes, near-zero fees, and 2-second block times
+---
+
+# Welcome to Viction
+
+Viction Blockchain is an innovative solution to the scalability problem with the Ethereum blockchain. Our mission is to be a leading force in building the Internet of Value, and its infrastructure. We are working to create an alternative, scalable financial system which is more secure, transparent, efficient, inclusive, and equitable for everyone.
+
+## Key Features
+
+Viction delivers enterprise-grade performance while maintaining full EVM compatibility:
+
+<CardGroup cols={2}>
+  <Card title="Near-Zero Fees" icon="coins">
+    Transaction costs minimized for mass adoption and real-world applications
+  </Card>
+  <Card title="2-Second Block Times" icon="clock">
+    Fast transaction confirmation for instant payment experiences
+  </Card>
+  <Card title="150 Masternodes" icon="server">
+    Decentralized network secured by Proof of Stake Voting consensus
+  </Card>
+  <Card title="EVM Compatible" icon="code">
+    Run Ethereum smart contracts and dApps without modification
+  </Card>
+</CardGroup>
+
+## Network Architecture
+
+Viction relies on a system of 150 Masternodes with a Proof of Stake Voting consensus that ensures:
+
+- **Security**: Double validation and staking via smart contracts
+- **Stability**: "True" randomization processes for masternode selection
+- **Chain Finality**: Guaranteed transaction finality through advanced consensus
+
+### Consensus Parameters (Mainnet)
+
+```json
+{
+  "ChainId": 88,
+  "Period": 2,          // 2 seconds between blocks
+  "Epoch": 900,         // Epoch length for checkpoints
+  "Reward": 250,        // Block reward in VIC
+  "RewardCheckpoint": 900,
+  "Gap": 5              // Preparation time for next epoch
+}
+```
+
+## DeFi Features
+
+Viction provides built-in decentralized finance capabilities:
+
+### TomoX DEX Protocol
+
+Integrated decentralized exchange functionality enabling:
+- On-chain order matching
+- Cross-chain atomic swaps
+- Token issuance and integration
+- Low-latency trading
+
+### Lending Protocol
+
+Native lending and borrowing features for:
+- Collateralized loans
+- Interest-bearing deposits
+- Decentralized money markets
+
+## Get Started
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Set up a full node in minutes with our quickstart guide
+  </Card>
+  <Card title="Installation" icon="download" href="/installation">
+    Detailed installation for all platforms and methods
+  </Card>
+  <Card title="Network Info" icon="network-wired" href="https://docs.viction.xyz/general/network-information">
+    Connection parameters and network details
+  </Card>
+  <Card title="Run a Masternode" icon="server" href="https://docs.viction.xyz/masternode">
+    Learn how to become a masternode validator
+  </Card>
+</CardGroup>
+
+## Networks
+
+<Tabs>
+  <Tab title="Mainnet">
+    **Chain ID**: 88  
+    **Network ID**: 88  
+    **RPC Endpoint**: Connect your node to the main production network  
+    **Explorer**: [https://vicscan.xyz](https://vicscan.xyz)  
+    **Stats**: [https://stats.viction.xyz](https://stats.viction.xyz)
+  </Tab>
+  <Tab title="Testnet">
+    **Chain ID**: 89  
+    **Network ID**: 89  
+    **RPC Endpoint**: Use `--tomo-testnet` flag  
+    **Explorer**: Testnet explorer available  
+    **Stats**: [https://stats.viction.xyz](https://stats.viction.xyz)
+  </Tab>
+</Tabs>
+
+## Core Technology
+
+Viction supports:
+- All EVM-compatible smart contracts and protocols
+- Atomic cross-chain token transfers
+- Sharding and scaling techniques (continuous research)
+- Private chain generation
+- Hardware integration capabilities
+
+<Note>
+  The masternode architecture is designed as an ideal scalable smart-contract public blockchain for decentralized apps, token issuances, and token integrations for small and big businesses.
+</Note>
+
+## Resources
+
+<CardGroup cols={3}>
+  <Card title="Website" icon="globe" href="https://viction.xyz">
+    Official website
+  </Card>
+  <Card title="Documentation" icon="book" href="https://docs.viction.xyz">
+    Full documentation portal
+  </Card>
+  <Card title="Whitepaper" icon="file-pdf" href="https://docs.viction.xyz/whitepaper-and-research">
+    Technical whitepaper
+  </Card>
+</CardGroup>
+
+## What's Next?
+
+<Steps>
+  <Step title="Set up your environment">
+    Install Go 1.18+ and required dependencies for building from source
+  </Step>
+  <Step title="Run a node">
+    Follow the quickstart guide to get a full node running
+  </Step>
+  <Step title="Create an account">
+    Use the `tomo account` command to manage your keystore
+  </Step>
+  <Step title="Join the network">
+    Connect to mainnet or testnet and start participating
+  </Step>
+</Steps>

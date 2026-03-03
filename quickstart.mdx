@@ -1,80 +1,268 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quick Start
+description: Get a Viction full node up and running in minutes
 ---
 
-## Get started in three steps
+# Quick Start Guide
 
-Get your documentation site running locally and make your first customization.
+This guide will help you quickly set up and run a Viction full node. For detailed installation instructions, see the [Installation](/installation) guide.
 
-### Step 1: Set up your local environment
+## Prerequisites
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
+<Note>
+  A Viction node requires an account even when running as a full node (non-masternode). Make sure you have your account ready before starting.
+</Note>
+
+Before you begin, ensure you have:
+- Go 1.18 or higher installed
+- A C compiler (gcc or equivalent)
+- At least 4GB RAM
+- 100GB+ disk space for blockchain data
+
+## Installation
+
+<Steps>
+  <Step title="Clone the Repository">
+    ```bash
+    git clone https://github.com/BuildOnViction/victionchain
+    cd victionchain
+    ```
+  </Step>
+
+  <Step title="Build the Binary">
+    Build the `tomo` client using the build script:
     
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
+    ```bash
+    go run build/ci.go install
+    ```
     
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
+    This will create the `tomo` binary in `build/bin/tomo`.
     
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
+    <Tip>
+      Alternatively, download pre-built binaries from the [GitHub releases page](https://github.com/BuildOnViction/victionchain/releases).
+    </Tip>
+  </Step>
+
+  <Step title="Create or Import an Account">
+    Every node needs an account. Choose one of the following:
+    
+    **Create a new account:**
+    ```bash
+    tomo account new --password /path/to/password_file --keystore /path/to/keystore_dir
+    ```
+    
+    **Import an existing private key:**
+    ```bash
+    tomo account import /path/to/privatekey_file --password /path/to/password_file --keystore /path/to/keystore_dir
+    ```
+    
+    <Warning>
+      Store your password file securely! Without it, you cannot unlock your account.
+    </Warning>
+  </Step>
+
+  <Step title="Start Your Node">
+    Run a basic full node with minimal configuration:
+    
+    ```bash
+    tomo --datadir /path/to/data_dir \
+      --keystore /path/to/keystore_dir \
+      --password /path/to/password_file \
+      --unlock 0
+    ```
+    
+    Your node will:
+    - Connect to Viction mainnet (Chain ID: 88)
+    - Start syncing the blockchain
+    - Unlock your account for transactions
+  </Step>
+</Steps>
+
+## Verify Your Node
+
+Once your node is running, verify it's working correctly:
+
+<CodeGroup>
+```bash IPC Console
+# Attach to running node
+tomo attach /path/to/data_dir/tomo.ipc
+
+# Check sync status
+> eth.syncing
+
+# Check peer count
+> net.peerCount
+
+# Get latest block
+> eth.blockNumber
+```
+
+```bash HTTP RPC
+# Check if RPC is responding (if --rpc flag enabled)
+curl -X POST -H "Content-Type: application/json" \
+  --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' \
+  http://localhost:8545
+```
+</CodeGroup>
+
+## Enhanced Configuration
+
+For a production node with RPC/WebSocket access, use additional flags:
+
+```bash
+tomo --datadir /path/to/data_dir \
+  --keystore /path/to/keystore_dir \
+  --password /path/to/password_file --unlock 0 \
+  --identity my-full-node \
+  --networkid 88 \
+  --gasprice 250000000 \
+  --rpc --rpcaddr 0.0.0.0 --rpcport 8545 --rpcvhosts "*" --rpccorsdomain "*" \
+  --rpcapi "eth,debug,net,db,personal,web3" \
+  --ws --wsaddr 0.0.0.0 --wsport 8546 --wsorigins "*" \
+  --port 30303 \
+  --syncmode "full" --gcmode "full" \
+  --verbosity 3
+```
+
+### Key Configuration Flags
+
+<Accordion title="Network Flags">
+  - `--identity`: Your node's name
+  - `--networkid`: Network ID (88 for mainnet, 89 for testnet)
+  - `--tomo-testnet`: Connect to testnet instead of mainnet
+  - `--port`: P2P listening port (default: 30303)
 </Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
-
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 3: Go live
-
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
+<Accordion title="RPC/WebSocket Flags">
+  - `--rpc`: Enable HTTP-RPC server
+  - `--rpcaddr`: HTTP-RPC server listening interface (0.0.0.0 for all)
+  - `--rpcport`: HTTP-RPC server port (default: 8545)
+  - `--rpcapi`: APIs offered over HTTP-RPC
+  - `--rpccorsdomain`: CORS domain for HTTP-RPC
+  - `--rpcvhosts`: Virtual hostnames accepted by HTTP-RPC
+  - `--ws`: Enable WebSocket server
+  - `--wsaddr`: WebSocket server listening interface
+  - `--wsport`: WebSocket server port (default: 8546)
+  - `--wsorigins`: Origins accepted by WebSocket server
 </Accordion>
 
-## Next steps
+<Accordion title="Sync & Storage Flags">
+  - `--syncmode`: Blockchain sync mode (`"fast"`, `"full"`, or `"light"`)
+  - `--gcmode`: Garbage collection mode (`"full"` or `"archive"`)
+  - `--datadir`: Data directory for databases and keystore
+</Accordion>
 
-Now that you have your docs running, explore these key features:
+<Accordion title="Performance Flags">
+  - `--gasprice`: Minimal gas price to accept for mining (250000000 recommended)
+  - `--verbosity`: Logging verbosity (0-5, recommended: 3)
+</Accordion>
+
+## Running with Docker
+
+Prefer containers? Run Viction with Docker:
+
+<Steps>
+  <Step title="Pull or Build Image">
+    **Option 1: Build locally**
+    ```bash
+    docker build --file Dockerfile.node -t "buildonviction/node:v2.5.1" .
+    ```
+    
+    **Option 2: Pull from registry**
+    ```bash
+    docker pull buildonviction/node:v2.5.1
+    ```
+  </Step>
+
+  <Step title="Run Container">
+    ```bash
+    docker run --name viction \
+      -v "/path/to/data_dir:/tomochain/data" \
+      -v "/path/to/keystore_dir:/tomochain/keystore" \
+      -v "/path/to/password_file:/tomochain/password" \
+      -p 8545:8545 \
+      -p 8546:8546 \
+      -p 30303:30303 \
+      -e IDENTITY=my-full-node \
+      -e NETWORK_ID=88 \
+      -e NETSTATS_HOST=stats.viction.xyz \
+      -e NETSTATS_PORT=443 \
+      -e WS_SECRET=getty-site-pablo-auger-room-sos-blair-shin-whiz-delhi \
+      -e VERBOSITY=3 \
+      buildonviction/node:v2.5.1
+    ```
+  </Step>
+</Steps>
+
+### Docker Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|-------|
+| `IDENTITY` | Your node's name | - |
+| `NETWORK_ID` | Network ID (88=mainnet, 89=testnet) | 88 |
+| `SYNC_MODE` | Sync mode (full/fast/light) | full |
+| `BOOTNODES` | Comma-separated list of bootnode enodes | - |
+| `EXTIP` | External IP for P2P connections | - |
+| `P2P_PORT` | P2P listening port | 30303 |
+| `MAX_PEERS` | Maximum number of peers (0=disable P2P) | 25 |
+| `NETSTATS_HOST` | Ethstats hostname | netstats-server |
+| `NETSTATS_PORT` | Ethstats port | 3000 |
+| `WS_SECRET` | Ethstats secret | - |
+| `PRIVATE_KEY` | Node account private key (plaintext) | - |
+| `PASSWORD` | Account password (plaintext) | - |
+| `DEBUG_MODE` | Enable archive mode and debug APIs | - |
+| `STORE_REWARD` | Enable masternode reward snapshots | - |
+| `VERBOSITY` | Logging verbosity (1-5) | 3 |
+
+## Monitoring Your Node
+
+### Report to Network Stats
+
+Connect your node to the network statistics dashboard:
+
+```bash
+tomo --datadir /path/to/data_dir \
+  --ethstats my-node-name:getty-site-pablo-auger-room-sos-blair-shin-whiz-delhi@stats.viction.xyz \
+  # ... other flags
+```
+
+View your node on the stats page: [https://stats.viction.xyz](https://stats.viction.xyz)
+
+### Check Sync Progress
+
+Attach to the console and check sync status:
+
+```javascript
+// Returns false when fully synced
+eth.syncing
+
+// Shows current block vs highest known block when syncing
+{
+  currentBlock: 1000000,
+  highestBlock: 5000000,
+  knownStates: 2000000,
+  pulledStates: 1500000,
+  startingBlock: 0
+}
+```
+
+## Next Steps
 
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Installation Guide" icon="download" href="/installation">
+    Detailed installation instructions for all platforms
+  </Card>
+  <Card title="Account Management" icon="key">
+    Learn about managing accounts, creating, importing, and updating
+  </Card>
+  <Card title="Become a Masternode" icon="server" href="https://docs.viction.xyz/masternode">
+    Run a masternode and earn rewards
+  </Card>
+  <Card title="Network Information" icon="network-wired" href="https://docs.viction.xyz/general/network-information">
+    Detailed network parameters and endpoints
+  </Card>
 </CardGroup>
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+  Need help? Check out the [full documentation](https://docs.viction.xyz) or visit the [GitHub repository](https://github.com/BuildOnViction/victionchain) for issues and discussions.
 </Note>

@@ -1,0 +1,245 @@
+---
+title: Account Management
+description: Managing accounts and wallets in Viction
+---
+
+## Overview
+
+Viction uses keystore-based account management with encrypted JSON files stored according to the Web3 Secret Storage specification. Account operations are performed through the `tomo account` command.
+
+<Warning>
+Keys are stored under `<DATADIR>/keystore`. Never share your private keys or keystore files. Make sure you backup your keys regularly.
+</Warning>
+
+## Account Commands
+
+All account operations are accessed through the `tomo account` subcommand:
+
+```bash
+tomo account <command> [options]
+```
+
+### List Accounts
+
+Print a summary of all existing accounts:
+
+```bash
+tomo account list [--datadir <path>] [--keystore <path>]
+```
+
+**Options:**
+- `--datadir`: Data directory for the databases and keystore
+- `--keystore`: Directory for the keystore (default: `<datadir>/keystore`)
+
+**Example output:**
+```
+Account #0: {0x1234...5678} keystore:///path/to/keystore/UTC--2024-01-01T00-00-00.000000000Z--1234...5678
+Account #1: {0xabcd...ef01} keystore:///path/to/keystore/UTC--2024-01-02T00-00-00.000000000Z--abcd...ef01
+```
+
+### Create New Account
+
+Create a new account and save it to the keystore:
+
+```bash
+tomo account new [options]
+```
+
+**Options:**
+- `--datadir`: Data directory for the databases and keystore
+- `--keystore`: Directory for the keystore
+- `--password`: Password file for non-interactive mode
+- `--lightkdf`: Reduce KDF memory & CPU usage at expense of security
+
+**Interactive example:**
+```bash
+tomo account new
+```
+
+You'll be prompted to enter and confirm a passphrase:
+```
+Your new account is locked with a password. Please give a password. Do not forget this password.
+Passphrase: 
+Repeat passphrase: 
+Address: {0x1234567890abcdef1234567890abcdef12345678}
+```
+
+<Warning>
+You must remember the passphrase to unlock your account. Without it, you cannot access your account. There is no password recovery mechanism.
+</Warning>
+
+**Non-interactive example:**
+```bash
+echo "my-secure-password" > password.txt
+tomo account new --password password.txt
+```
+
+### Update Account Password
+
+Update an existing account's password:
+
+```bash
+tomo account update <address> [options]
+```
+
+**Options:**
+- `--datadir`: Data directory for the databases and keystore
+- `--keystore`: Directory for the keystore
+- `--lightkdf`: Reduce KDF memory & CPU usage
+
+**Example:**
+```bash
+tomo account update 0x1234567890abcdef1234567890abcdef12345678
+```
+
+You'll be prompted for the old password and then for a new password:
+```
+Unlocking account 0x1234567890abcdef1234567890abcdef12345678 | Attempt 1/3
+Passphrase: 
+Please give a new password. Do not forget this password.
+Passphrase: 
+Repeat passphrase: 
+```
+
+### Import Private Key
+
+Import an unencrypted private key into a new account:
+
+```bash
+tomo account import <keyfile> [options]
+```
+
+**Options:**
+- `--datadir`: Data directory for the databases and keystore
+- `--keystore`: Directory for the keystore
+- `--password`: Password file for non-interactive mode
+- `--lightkdf`: Reduce KDF memory & CPU usage
+
+**Example:**
+```bash
+tomo account import ./my-private-key.txt
+```
+
+The keyfile should contain an unencrypted private key in hexadecimal format.
+
+<Warning>
+The private key file should be in plain hexadecimal format. After importing, delete the original unencrypted key file securely. Never expose private keys.
+</Warning>
+
+**Example keyfile format:**
+```
+1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+```
+
+## Wallet Commands
+
+### Import Presale Wallet
+
+Import an Ethereum presale wallet:
+
+```bash
+tomo wallet import <keyfile> [options]
+```
+
+**Options:**
+- `--datadir`: Data directory for the databases and keystore
+- `--keystore`: Directory for the keystore
+- `--password`: Password file for non-interactive mode
+- `--lightkdf`: Reduce KDF memory & CPU usage
+
+## Account Unlocking
+
+Accounts can be unlocked when starting the node to enable automatic signing:
+
+```bash
+tomo --unlock <address> --password <passwordfile>
+```
+
+**Example:**
+```bash
+tomo --unlock 0x1234567890abcdef1234567890abcdef12345678 --password password.txt
+```
+
+To unlock multiple accounts:
+```bash
+tomo --unlock "0x1234...,0x5678..." --password password.txt
+```
+
+<Warning>
+Unlocking accounts on production nodes exposes them to potential security risks. Only unlock accounts when necessary and ensure proper network security measures are in place.
+</Warning>
+
+## Keystore Location
+
+By default, keystores are located at:
+- **Linux/macOS**: `~/.ethereum/keystore`
+- **Custom**: Specify with `--keystore` flag or `--datadir` flag
+
+## Keystore Security
+
+Keystores use scrypt key derivation function (KDF) for encryption:
+
+### Standard KDF (Recommended)
+Provides strong security with higher memory and CPU requirements:
+```bash
+tomo account new
+```
+
+### Lightweight KDF
+Reduces memory/CPU usage but provides less security:
+```bash
+tomo account new --lightkdf
+```
+
+<Warning>
+Lightweight KDF is only recommended for testing. Always use standard KDF for production accounts containing real value.
+</Warning>
+
+## Account Errors
+
+Common account-related errors:
+
+### `ErrLocked`
+**Error**: `password or unlock`
+
+**Cause**: Account is locked and requires authentication
+
+**Solution**: Unlock the account with the correct password
+
+### `ErrDecrypt`
+**Error**: `could not decrypt key with given passphrase`
+
+**Cause**: Incorrect password provided
+
+**Solution**: Verify you're using the correct passphrase for the account
+
+### `ErrNoMatch`
+**Error**: `no key for given address or file`
+
+**Cause**: Account address not found in keystore
+
+**Solution**: Verify the address is correct and the keystore path is properly configured
+
+### Ambiguous Address Error
+
+Multiple key files exist for the same address. The system will test your passphrase against all matching files and identify duplicates to remove.
+
+## Best Practices
+
+1. **Backup Your Keys**: Regularly backup your keystore directory
+2. **Strong Passphrases**: Use long, complex passphrases with mixed characters
+3. **Secure Storage**: Keep backups in multiple secure, offline locations
+4. **Test Restores**: Verify backups work before relying on them
+5. **Separate Accounts**: Use different accounts for different purposes
+6. **Hardware Wallets**: Consider hardware wallets for large amounts
+7. **Key Rotation**: Update passwords periodically using `account update`
+
+## Account Transfer
+
+You can safely transfer accounts between Viction nodes by copying the keystore files:
+
+```bash
+cp ~/.ethereum/keystore/UTC--* /path/to/new/node/keystore/
+```
+
+The entire keystore directory or individual key files can be transferred.

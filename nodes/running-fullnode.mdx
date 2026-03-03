@@ -1,0 +1,268 @@
+---
+title: Running a Full Node
+description: Learn how to run a Viction full node on mainnet or testnet
+---
+
+A full node is a node that fully validates transactions and blocks. Running a full node helps secure the network and allows you to interact with the blockchain without relying on third parties.
+
+## Prerequisites
+
+Before running a full node, ensure you have:
+
+- A server with at least 4GB RAM and 200GB disk space
+- Go 1.18 or higher installed (for binary build)
+- Docker installed (for Docker deployment)
+- Stable internet connection
+
+## Account Setup
+
+Viction requires an account when running the node, even for full nodes. You need to either create a new account or import an existing one.
+
+<Steps>
+  <Step title="Create a new account">
+    If you don't have an existing account, create a new one:
+
+    ```bash
+    tomo account new --password /path/to/password_file --keystore /path/to/keystore_dir
+    ```
+
+    This will generate a new account and store it in the specified keystore directory.
+  </Step>
+
+  <Step title="Import an existing account">
+    If you already have a private key, import it:
+
+    ```bash
+    tomo account import /path/to/privatekey_file --password /path/to/password_file --keystore /path/to/keystore_dir
+    ```
+
+    The private key file should contain your private key in plain text.
+  </Step>
+</Steps>
+
+## Running the Node
+
+<Tabs>
+  <Tab title="Basic Setup">
+    To run a full node with default settings:
+
+    ```bash
+    tomo --datadir /path/to/data_dir --keystore /path/to/keystore_dir --password /path/to/password_file --unlock 0
+    ```
+
+    This command will:
+    - Connect to the Viction mainnet (network ID 88)
+    - Sync in full mode
+    - Use the first account in your keystore
+  </Tab>
+
+  <Tab title="Advanced Setup">
+    For more control over your node configuration:
+
+    ```bash
+    tomo --datadir /path/to/data_dir \
+      --keystore /path/to/keystore_dir \
+      --password /path/to/password_file --unlock 0 \
+      --identity my-full-node \
+      --networkid 88 \
+      --gasprice 250000000 \
+      --rpc --rpcaddr 0.0.0.0 --rpcport 8545 --rpcvhosts "*" --rpccorsdomain "*" \
+      --rpcapi "eth,debug,net,db,personal,web3" \
+      --ws --wsaddr 0.0.0.0 --wsport 8546 --wsorigins "*" \
+      --mine \
+      --port 30303 \
+      --syncmode "full" --gcmode "full" \
+      --ethstats my-full-node:getty-site-pablo-auger-room-sos-blair-shin-whiz-delhi@stats.viction.xyz \
+      --verbosity 3
+    ```
+  </Tab>
+
+  <Tab title="Testnet">
+    To run a full node on the Viction testnet:
+
+    ```bash
+    tomo --datadir /path/to/data_dir \
+      --keystore /path/to/keystore_dir \
+      --password /path/to/password_file --unlock 0 \
+      --tomo-testnet \
+      --networkid 89 \
+      --rpc --rpcaddr 0.0.0.0 --rpcport 8545 \
+      --ws --wsaddr 0.0.0.0 --wsport 8546 \
+      --syncmode "full" --gcmode "full" \
+      --verbosity 3
+    ```
+  </Tab>
+</Tabs>
+
+## Key Parameters Explained
+
+<ResponseField name="datadir" type="string" required>
+  Path to your data directory where blockchain data will be stored
+</ResponseField>
+
+<ResponseField name="keystore" type="string" required>
+  Path to your account's keystore directory
+</ResponseField>
+
+<ResponseField name="password" type="string" required>
+  Path to file containing your account's password
+</ResponseField>
+
+<ResponseField name="unlock" type="string" required>
+  Account index or address to unlock (use "0" for the first account)
+</ResponseField>
+
+<ResponseField name="identity" type="string">
+  Custom name for your node (appears in network stats)
+</ResponseField>
+
+<ResponseField name="networkid" type="number">
+  Network identifier (88 for mainnet, 89 for testnet)
+</ResponseField>
+
+<ResponseField name="syncmode" type="string">
+  Blockchain sync mode: "fast", "full", or "light". Default is "full"
+</ResponseField>
+
+<ResponseField name="gcmode" type="string">
+  Blockchain garbage collection mode: "full" or "archive"
+</ResponseField>
+
+<ResponseField name="mine" type="boolean">
+  Enable staking (required if you want to register as a masternode candidate)
+</ResponseField>
+
+<ResponseField name="port" type="number">
+  P2P network listening port (default: 30303)
+</ResponseField>
+
+<ResponseField name="rpc" type="boolean">
+  Enable the HTTP-RPC server
+</ResponseField>
+
+<ResponseField name="rpcaddr" type="string">
+  HTTP-RPC server listening address (use "0.0.0.0" to allow external connections)
+</ResponseField>
+
+<ResponseField name="rpcport" type="number">
+  HTTP-RPC server listening port (default: 8545)
+</ResponseField>
+
+<ResponseField name="ws" type="boolean">
+  Enable the WebSocket-RPC server
+</ResponseField>
+
+<ResponseField name="wsaddr" type="string">
+  WebSocket-RPC server listening address
+</ResponseField>
+
+<ResponseField name="wsport" type="number">
+  WebSocket-RPC server listening port (default: 8546)
+</ResponseField>
+
+<ResponseField name="verbosity" type="number">
+  Logging verbosity level (1-5, where 5 is most verbose)
+</ResponseField>
+
+## Network Stats Reporting
+
+To report your node statistics to the Viction network stats dashboard:
+
+```bash
+--ethstats "your-node-name:secret@stats.viction.xyz"
+```
+
+Replace `your-node-name` with your desired node name. The secret is:
+```
+getty-site-pablo-auger-room-sos-blair-shin-whiz-delhi
+```
+
+## Sync Modes
+
+<CardGroup cols={3}>
+  <Card title="Fast Sync" icon="bolt">
+    Downloads blocks and verifies only the most recent state. Faster initial sync but less secure validation.
+  </Card>
+  <Card title="Full Sync" icon="check">
+    Downloads and validates all blocks from genesis. Slower but fully validates the entire chain.
+  </Card>
+  <Card title="Light Sync" icon="moon">
+    Downloads only block headers. Requires trust in full nodes. Not recommended for production.
+  </Card>
+</CardGroup>
+
+## Garbage Collection Modes
+
+<CardGroup cols={2}>
+  <Card title="Full Mode" icon="broom">
+    Prunes old state data to save disk space. Suitable for most full nodes.
+  </Card>
+  <Card title="Archive Mode" icon="database">
+    Keeps all historical state data. Required for:
+    - Running an archive node
+    - Using `--store-reward` flag
+    - Providing historical state queries
+  </Card>
+</CardGroup>
+
+## Monitoring Your Node
+
+Once your node is running, you can:
+
+1. **Check sync status** via RPC:
+   ```bash
+   curl -X POST --data '{"jsonrpc":"2.0","method":"eth_syncing","params":[],"id":1}' -H "Content-Type: application/json" http://localhost:8545
+   ```
+
+2. **View logs** to monitor node activity (verbosity level affects log detail)
+
+3. **Check peer count**:
+   ```bash
+   curl -X POST --data '{"jsonrpc":"2.0","method":"net_peerCount","params":[],"id":1}' -H "Content-Type: application/json" http://localhost:8545
+   ```
+
+4. **View network stats** at [https://stats.viction.xyz](https://stats.viction.xyz) if you configured `--ethstats`
+
+<Note>
+  Initial sync can take several hours depending on your hardware and network connection. The node must download and verify the entire blockchain.
+</Note>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Node won't sync">
+    - Check your internet connection
+    - Verify that port 30303 is not blocked by firewall
+    - Try adding bootnodes manually with `--bootnodes` flag
+    - Ensure you have enough disk space
+  </Accordion>
+
+  <Accordion title="RPC connection refused">
+    - Verify RPC is enabled with `--rpc` flag
+    - Check that `--rpcaddr` is set to `0.0.0.0` for external access
+    - Ensure firewall allows connections to RPC port
+  </Accordion>
+
+  <Accordion title="Account unlock failed">
+    - Verify password file is correct
+    - Check keystore path is valid
+    - Ensure account exists in keystore directory
+  </Accordion>
+
+  <Accordion title="Out of memory errors">
+    - Increase system RAM
+    - Use `--cache` flag to adjust memory allocation
+    - Consider using fast sync instead of full sync
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="gear" href="/nodes/configuration">
+    Learn about all available configuration options
+  </Card>
+  <Card title="Run a Masternode" icon="server" href="/nodes/running-masternode">
+    Upgrade your full node to a masternode
+  </Card>
+</CardGroup>

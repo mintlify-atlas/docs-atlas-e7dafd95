@@ -1,0 +1,477 @@
+---
+title: "TRC21 Token Standard"
+description: "Fee-less token standard enabling gasless transactions on Viction"
+---
+
+## Overview
+
+TRC21 is Viction's innovative token standard that enables gasless transactions. Users can pay transaction fees using the tokens themselves instead of holding VIC for gas, making blockchain interactions seamless and user-friendly.
+
+## Key Innovation
+
+Traditional blockchain transactions require users to hold native tokens (ETH, VIC, etc.) for gas fees. TRC21 solves this by:
+
+- **Fee Abstraction**: Transaction fees paid in the token being transferred
+- **Better UX**: Users only need one token, not native + token
+- **Issuer Control**: Token issuers can subsidize or profit from fees
+- **ERC20 Compatible**: Extends ERC20 with fee functionality
+
+## Token Interface
+
+The TRC21 interface extends standard ERC20:
+
+```solidity
+interface ITRC21 {
+    function totalSupply() external view returns (uint256);
+    function balanceOf(address who) external view returns (uint256);
+    function issuer() external view returns (address);
+    function decimals() external view returns (uint8);
+    function estimateFee(uint256 value) external view returns (uint256);
+    function allowance(address owner, address spender) external view returns (uint256);
+    
+    function transfer(address to, uint256 value) external returns (bool);
+    function approve(address spender, uint256 value) external returns (bool);
+    function transferFrom(address from, address to, uint256 value) external returns (bool);
+    
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+    event Fee(address indexed from, address indexed to, address indexed issuer, uint256 value);
+}
+```
+
+Source: `contracts/tomox/contract/TRC21.sol:8`
+
+## Fee Mechanism
+
+### How Fees Work
+
+When a user transfers TRC21 tokens:
+
+1. **Fee Calculation**: System calls `estimateFee()` to determine fee
+2. **Total Deduction**: User's balance reduced by `amount + fee`
+3. **Transfer**: `amount` tokens sent to recipient
+4. **Fee Payment**: `fee` tokens sent to issuer
+5. **Fee Event**: `Fee` event emitted for tracking
+
+```solidity
+function transfer(address to, uint256 value) public returns (bool) {
+    require(to != address(0));
+    uint256 total = value.add(_minFee);
+    require(total <= _balances[msg.sender]);
+    
+    _transfer(msg.sender, to, value);
+    
+    if (_minFee > 0) {
+        _transfer(msg.sender, _issuer, _minFee);
+        emit Fee(msg.sender, to, _issuer, _minFee);
+    }
+    return true;
+}
+```
+
+Source: `contracts/tomox/contract/TRC21.sol:127`
+
+### Fee Estimation
+
+Users can check fees before transacting:
+
+```solidity
+function estimateFee(uint256 value) public view returns (uint256) {
+    return value.mul(0).add(_minFee);
+}
+```
+
+Source: `contracts/tomox/contract/TRC21.sol:103`
+
+The standard implementation uses a flat fee (`_minFee`), but issuers can implement:
+- Percentage-based fees
+- Tiered fee structures
+- Dynamic fees based on network conditions
+- Zero fees (fully subsidized)
+
+## Token Issuer
+
+Every TRC21 token has an issuer who:
+
+- **Receives Fees**: Collects transaction fees
+- **Sets Fee Amount**: Controls `_minFee` value
+- **Maintains Capacity**: Deposits VIC for gas subsidy
+- **Manages Token**: Controls token parameters
+
+```solidity
+function issuer() public view returns (address) {
+    return _issuer;
+}
+
+function setMinFee(uint256 value) public {
+    require(msg.sender == _issuer);
+    _changeMinFee(value);
+}
+```
+
+Source: `contracts/tomox/contract/TRC21.sol:86`
+
+## TRC21 Issuer Contract
+
+To enable TRC21 functionality, token issuers must register:
+
+```solidity
+contract TRC21Issuer {
+    uint256 _minCap;
+    address[] _tokens;
+    mapping(address => uint256) tokensState;
+    
+    event Apply(address indexed issuer, address indexed token, uint256 value);
+    event Charge(address indexed supporter, address indexed token, uint256 value);
+}
+```
+
+Source: `contracts/trc21issuer/contract/TRC21Issuer.sol:7`
+
+### Applying for TRC21
+
+Token issuers must deposit VIC to cover gas costs:
+
+```solidity
+function apply(address token) public payable onlyValidCapacity(token) {
+    AbstractTokenTRC21 t = AbstractTokenTRC21(token);
+    require(t.issuer() == msg.sender);
+    _tokens.push(token);
+    tokensState[token] = tokensState[token].add(msg.value);
+    emit Apply(msg.sender, token, msg.value);
+}
+
+modifier onlyValidCapacity(address token) {
+    require(token != address(0));
+    require(msg.value >= _minCap);
+    _;
+}
+```
+
+Source: `contracts/trc21issuer/contract/TRC21Issuer.sol:38`
+
+### Adding Capacity
+
+Issuers can add more VIC to maintain gas subsidy:
+
+```solidity
+function charge(address token) public payable onlyValidCapacity(token) {
+    tokensState[token] = tokensState[token].add(msg.value);
+    emit Charge(msg.sender, token, msg.value);
+}
+```
+
+Source: `contracts/trc21issuer/contract/TRC21Issuer.sol:46`
+
+### Checking Capacity
+
+```solidity
+function getTokenCapacity(address token) public view returns(uint256) {
+    return tokensState[token];
+}
+```
+
+Source: `contracts/trc21issuer/contract/TRC21Issuer.sol:28`
+
+## Implementation Example
+
+Full TRC21 token with multisig and burn functionality:
+
+```solidity
+contract MyTRC21 is TRC21 {
+    constructor(
+        address[] _owners,
+        uint _required,
+        string memory _name,
+        string memory _symbol,
+        uint8 _decimals,
+        uint256 cap,
+        uint256 minFee,
+        uint256 depositFee,
+        uint256 withdrawFee
+    ) TRC21(_name, _symbol, _decimals) 
+      public 
+      validRequirement(_owners.length, _required) 
+    {
+        _mint(msg.sender, cap);
+        _changeIssuer(msg.sender);
+        _changeMinFee(minFee);
+        // ... configure multisig owners
+        DEPOSIT_FEE = depositFee;
+        WITHDRAW_FEE = withdrawFee;
+    }
+}
+```
+
+Source: `contracts/tomox/contract/TRC21.sol:345`
+
+## Transfer Variants
+
+### Standard Transfer
+
+```solidity
+function transfer(address to, uint256 value) public returns (bool) {
+    require(to != address(0));
+    uint256 total = value.add(_minFee);
+    require(total <= _balances[msg.sender]);
+    _transfer(msg.sender, to, value);
+    if (_minFee > 0) {
+        _transfer(msg.sender, _issuer, _minFee);
+        emit Fee(msg.sender, to, _issuer, _minFee);
+    }
+    return true;
+}
+```
+
+Source: `contracts/tomox/contract/TRC21.sol:127`
+
+### Transfer From (Allowance)
+
+```solidity
+function transferFrom(
+    address from,
+    address to,
+    uint256 value
+) public returns (bool) {
+    uint256 total = value.add(_minFee);
+    require(total <= _balances[from]);
+    require(value <= _allowed[from][msg.sender]);
+    
+    _allowed[from][msg.sender] = _allowed[from][msg.sender].sub(total);
+    _transfer(from, to, value);
+    _transfer(from, _issuer, _minFee);
+    emit Fee(msg.sender, to, _issuer, _minFee);
+    return true;
+}
+```
+
+Source: `contracts/tomox/contract/TRC21.sol:163`
+
+### Approve
+
+Approval also requires fee payment:
+
+```solidity
+function approve(address spender, uint256 value) public returns (bool) {
+    require(spender != address(0));
+    require(_balances[msg.sender] >= _minFee);
+    _allowed[msg.sender][spender] = value;
+    _transfer(msg.sender, _issuer, _minFee);
+    emit Approval(msg.sender, spender, value);
+    return true;
+}
+```
+
+Source: `contracts/tomox/contract/TRC21.sol:148`
+
+## Token Burning
+
+TRC21 tokens can implement burning with fees:
+
+```solidity
+function burn(uint value, bytes data) public {
+    require(value > WITHDRAW_FEE);  // Avoid spamming
+    super._burn(msg.sender, value);
+    
+    if (WITHDRAW_FEE > 0) {
+        super._mint(issuer(), WITHDRAW_FEE);
+    }
+    
+    uint256 burnValue = value.sub(WITHDRAW_FEE);
+    burnList.push(TokenBurnData({
+        value: burnValue,
+        burner: msg.sender,
+        data: data
+    }));
+    
+    TokenBurn(burnList.length - 1, msg.sender, burnValue, data);
+}
+```
+
+Source: `contracts/tomox/contract/TRC21.sol:483`
+
+Burning enables:
+- **Wrapped Tokens**: Burn to redeem on another chain
+- **Deflationary Models**: Reduce supply over time
+- **Exit Mechanisms**: Convert to other assets
+
+## Minting (Multisig)
+
+The example implementation includes multisig minting:
+
+```solidity
+function submitTransaction(
+    address destination,
+    uint value,
+    bytes data
+) public returns (uint transactionId) {
+    transactionId = addTransaction(destination, value, data);
+    confirmTransaction(transactionId);
+}
+
+function executeTransaction(uint transactionId) public {
+    if (isConfirmed(transactionId)) {
+        Transaction storage txn = transactions[transactionId];
+        txn.executed = true;
+        
+        if (txn.data.length == 0) {
+            // Minting transaction
+            txn.value = txn.value.sub(DEPOSIT_FEE);
+            super._mint(txn.destination, txn.value);
+            if (DEPOSIT_FEE > 0) {
+                super._mint(issuer(), DEPOSIT_FEE);
+            }
+        }
+    }
+}
+```
+
+Source: `contracts/tomox/contract/TRC21.sol:502`
+
+## Gas Subsidy Mechanism
+
+How TRC21 transactions work under the hood:
+
+1. **User Submits Transaction**: Signs transaction with 0 gas price
+2. **Validator Checks Issuer**: Verifies token has capacity in TRC21Issuer
+3. **Validator Pays Gas**: Pays VIC gas cost from validator balance
+4. **Fee Collection**: Token fee transferred to issuer
+5. **Issuer Reimbursement**: Validator collects gas cost from issuer's deposit
+
+This creates a seamless experience where:
+- Users only interact with one token
+- Validators are always reimbursed
+- Issuers control the economics
+
+## Use Cases
+
+### Stablecoins
+
+Users can transact without holding volatile VIC:
+- Send USDT without needing VIC
+- Fees paid in USDT itself
+- Simplified onboarding
+
+### Loyalty Programs
+
+Brands can issue tokens with:
+- Zero fees (fully subsidized)
+- Users never need blockchain knowledge
+- Seamless reward redemption
+
+### Payment Tokens
+
+Merchants accept tokens for payment:
+- Customers pay only in the payment token
+- Transaction fees covered by merchant
+- No blockchain complexity for customers
+
+### Gaming Assets
+
+In-game currencies and items:
+- Players trade without managing gas
+- Game developer subsidizes fees
+- Standard gaming UX
+
+## Best Practices
+
+### For Token Issuers
+
+1. **Maintain Capacity**: Monitor and refill TRC21Issuer deposit
+2. **Set Reasonable Fees**: Balance revenue with user experience
+3. **Communicate Fees**: Display fees clearly in UI
+4. **Monitor Usage**: Track gas consumption and fee revenue
+
+### For Developers
+
+1. **Check Capacity**: Verify issuer has sufficient VIC deposit
+2. **Estimate Fees**: Call `estimateFee()` before transactions
+3. **Handle Fee Events**: Listen to `Fee` events for accounting
+4. **Test Thoroughly**: Edge cases with zero balances and fees
+
+### For Users
+
+1. **Understand Fees**: Check fee amount before transacting
+2. **Maintain Balance**: Ensure balance covers amount + fee
+3. **Verify Issuer**: Check token is properly registered
+4. **Compare Costs**: Compare TRC21 fees to gas costs
+
+## Token Lifecycle
+
+### 1. Deploy Token Contract
+
+```solidity
+MyTRC21 token = new MyTRC21(
+    owners,
+    required,
+    "My Token",
+    "MTK",
+    18,
+    1000000 * 10**18,  // cap
+    100,                // minFee
+    50,                 // depositFee
+    50                  // withdrawFee
+);
+```
+
+### 2. Register with TRC21Issuer
+
+```solidity
+trc21Issuer.apply{value: 100 ether}(address(token));
+```
+
+### 3. Users Transact
+
+```solidity
+token.transfer(recipient, 1000);
+// Fee automatically deducted and sent to issuer
+```
+
+### 4. Maintain Capacity
+
+```solidity
+trc21Issuer.charge{value: 50 ether}(address(token));
+```
+
+<Accordion title="What happens if the issuer's capacity runs out?">
+If the issuer's VIC deposit is depleted:
+- TRC21 transactions will fail
+- Users must either wait for issuer to refill or
+- Use standard VIC for gas (fallback to normal ERC20 behavior)
+- Validators won't process TRC21 transactions without capacity
+
+Issuers should monitor capacity and maintain sufficient balance.
+</Accordion>
+
+<Accordion title="Can TRC21 tokens be used in smart contracts?">
+Yes, TRC21 tokens work in smart contracts with considerations:
+- Contract must account for fees in logic
+- Check `total = amount + estimateFee(amount)`
+- Contract needs sufficient token balance for fees
+- Fee goes to issuer, not the contract
+- Use standard ERC20 interface for compatibility
+</Accordion>
+
+<Accordion title="Are TRC21 tokens compatible with ERC20 wallets?">
+Yes, TRC21 extends ERC20:
+- All ERC20 functions are supported
+- Wallets see them as standard tokens
+- Fee handling is transparent to wallets
+- Some wallets may not show fee separately
+- Total deduction (amount + fee) is visible in transaction history
+</Accordion>
+
+<Accordion title="How do fees compare to gas costs?">
+Fee economics depend on the issuer's model:
+- **Subsidized**: Fees < gas costs (issuer loses money but gains users)
+- **Break-even**: Fees ≈ gas costs (issuer covers expenses)
+- **Profitable**: Fees > gas costs (issuer generates revenue)
+
+Users should compare total costs (amount + fee) to using VIC gas directly.
+</Accordion>
+
+## See Also
+
+- [Smart Contracts](/features/smart-contracts) - Deploy and interact with TRC21 tokens
+- [TomoX DEX](/features/tomox-dex) - Trade TRC21 tokens
+- [TomoX Lending](/features/tomox-lending) - Use TRC21 tokens as collateral
